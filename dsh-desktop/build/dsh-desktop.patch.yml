@@ -1,0 +1,31 @@
+# DSH Desktop delegates directory selection to Electron's system dialog. Keep
+# the renderless client surface, but do not load the Koffi-based Host worker:
+# on Windows it can exit before reporting a result inside packaged Electron.
+- id: directory-picker
+  disabled: true
+
+- insert:
+    - id: directory-picker-electron-desktop-surface
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-native'
+
+    # DSH Desktop owns the fixed-target dsh-market installer and its lightweight
+    # settings entry. After dshmarket is installed and Harness restarts, the
+    # community plugin replaces the placeholder with its complete market UI.
+    #
+    # OFF for the 天枢 build: the Harness comes from the sibling checkout
+    # (file:../apps/cli), which does not depend on this workspace-local plugin,
+    # so the loader cannot resolve the bare name. Upstream solved that with
+    # patches/@deepseek-ai+dsh+…patch — but through the symlink that patch would
+    # edit the Harness checkout's own apps/cli/package.json, so it is disabled
+    # too. To re-enable: add dsh-desktop-market-installer to the Harness
+    # checkout's apps/cli dependencies in source, then uncomment this row.
+    # - id: dsh-desktop-market-installer
+    #   name: dsh-desktop-market-installer
+
+# dsh-market normally offers to restart its own Node process after mutations.
+# The desktop shell has the real lifecycle authority, so keep that behavior off
+# whenever the optional plugin is present in the composed profile.
+- id: dsh-market
+  config:
+    profile: web
+    allowRestart: false

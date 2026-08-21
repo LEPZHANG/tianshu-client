@@ -1,0 +1,68 @@
+/** `tianshuBrand` namespace dictionaries: platform shell copy (sidebar controls, navigation, management pages). */
+
+/** Simplified Chinese dictionary (the key-set source of truth). */
+export const zh = {
+  'session.new': '新建会话',
+  'session.new.label': '新建会话',
+  'toggle.open': '打开侧边栏',
+  'toggle.collapse': '收起侧边栏',
+  'nav.config': '配置',
+  'nav.tasks': '任务管理',
+  'nav.sessions': '会话管理',
+  'page.close': '返回会话',
+  'page.tasks.title': '任务管理',
+  'page.tasks.caption': '管理并配置您的定时任务',
+  'page.tasks.templates': '模板中心',
+  'page.tasks.templatesNotice': '模板为示例展示：当前服务端尚无模板能力，暂不能由模板创建任务。',
+  'page.tasks.mine': '我的任务',
+  'page.tasks.empty': '暂无任务。定时提醒目前是会话内的模型工具，尚不支持跨会话的全局任务表。',
+  'page.sessions.title': '会话管理',
+  'page.sessions.caption': '查看并管理全部会话',
+  'page.sessions.all': '全部会话',
+  'page.sessions.empty': '暂无会话',
+  'page.sessions.untitled': '新会话',
+  'page.config.title': '配置',
+  'page.config.caption': '平台与模型配置',
+  'page.config.notice': '配置项统一在「设置」中管理，请使用侧边栏底部的设置入口。',
+  'tpl.backup': '重要数据备份',
+  'tpl.summary': '文本摘要',
+  'tpl.report': '日报生成',
+  'tpl.tag.image': '图像生成',
+  'tpl.tag.text': '文本处理',
+  'tpl.placeholder': '这里展示该模板的功能介绍。',
+} satisfies Record<string, string>
+
+/** The brand namespace key union. */
+export type TianshuSidebarKey = keyof typeof zh
+
+/** English dictionary, checked complete against the zh key set. */
+export const en = {
+  'session.new': 'New Session',
+  'session.new.label': 'New session',
+  'toggle.open': 'Open sidebar',
+  'toggle.collapse': 'Collapse sidebar',
+  'nav.config': 'Configuration',
+  'nav.tasks': 'Tasks',
+  'nav.sessions': 'Sessions',
+  'page.close': 'Back to conversation',
+  'page.tasks.title': 'Tasks',
+  'page.tasks.caption': 'Manage and configure your scheduled tasks',
+  'page.tasks.templates': 'Template catalogue',
+  'page.tasks.templatesNotice': 'Templates are shown as examples: the host has no template capability yet, so a task cannot be created from one.',
+  'page.tasks.mine': 'My tasks',
+  'page.tasks.empty': 'No tasks. Scheduled reminders are currently session-scoped model tools; a cross-session task table is not supported yet.',
+  'page.sessions.title': 'Sessions',
+  'page.sessions.caption': 'Browse and manage every session',
+  'page.sessions.all': 'All sessions',
+  'page.sessions.empty': 'No sessions yet',
+  'page.sessions.untitled': 'New Session',
+  'page.config.title': 'Configuration',
+  'page.config.caption': 'Platform and model configuration',
+  'page.config.notice': 'Configuration lives in Settings — use the settings entry at the foot of the sidebar.',
+  'tpl.backup': 'Critical data backup',
+  'tpl.summary': 'Text summary',
+  'tpl.report': 'Daily report',
+  'tpl.tag.image': 'Image generation',
+  'tpl.tag.text': 'Text processing',
+  'tpl.placeholder': 'This is where the template description appears.',
+} satisfies Record<TianshuSidebarKey, string>

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-18-gajz-login-surface.md
+2026-08-18-gajz-login-surface.md: 8829d2210f407250993b6e7a41b935f254cef4f5
+2026-08-18-gajz-login-surface.zh.md: 87b360d85ab990a90b1c539a2a613086e9cdb83e

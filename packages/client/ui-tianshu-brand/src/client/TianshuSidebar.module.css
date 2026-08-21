@@ -1,0 +1,350 @@
+/* Tianshu sidebar column: the brand gradient panel from the 首页 design.
+
+   The column paints a saturated blue, so every neutral ink token the nested
+   surfaces read would land dark-on-dark. Rather than overriding those tokens
+   globally (which would repaint the whole application), the column REBINDS
+   them for its own subtree — the same local-rebind pattern the shipped
+   sidebar uses for its scrollbar pair. Everything below inherits the inverted
+   scale without knowing it sits on brand blue. */
+
+.root {
+  --dsh-sidebar-inline-padding: 12px;
+
+  /* Inverted ink scale for the whole column subtree. */
+  --dsw-alias-label-primary: rgba(255, 255, 255, 0.95);
+  --dsw-alias-label-secondary: rgba(255, 255, 255, 0.78);
+  --dsw-alias-label-tertiary: rgba(255, 255, 255, 0.6);
+  --dsw-alias-label-caption: rgba(255, 255, 255, 0.55);
+  --dsw-alias-label-dimmed: rgba(255, 255, 255, 0.45);
+  --dsw-alias-border-l1: rgba(255, 255, 255, 0.1);
+  --dsw-alias-border-l2: rgba(255, 255, 255, 0.18);
+  --dsw-alias-border-l3: rgba(255, 255, 255, 0.24);
+  --dsw-alias-border-l4: rgba(255, 255, 255, 0.3);
+  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.12);
+  --dsw-alias-interactive-bg-active: rgba(255, 255, 255, 0.18);
+  --dsw-alias-interactive-bg-hover-solid: rgba(255, 255, 255, 0.16);
+  --dsw-alias-interactive-bg-hover-accent: rgba(255, 255, 255, 0.2);
+  --dsw-alias-button-elevated-fill: rgba(255, 255, 255, 0.16);
+  --dsw-alias-button-floating-fill: rgba(255, 255, 255, 0.16);
+  --dsw-alias-button-floating-hover: rgba(255, 255, 255, 0.24);
+  --dsw-specific-sidebar-nav-item-hover: rgba(255, 255, 255, 0.12);
+  --dsw-specific-sidebar-nav-item-active: rgba(255, 255, 255, 0.2);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(255, 255, 255, 0.28);
+
+  /* The scrollbar indirection pair stays bound to the canonical l2 elevation
+     spelling (ui-theme's scrollbar gate requires the pair to name one target).
+     What changes for the brand panel is the ELEVATION TOKENS themselves,
+     rebound here with the rest of the inverted scale, so a nested list draws a
+     light thumb on blue without this column special-casing the indirection. */
+  --dsw-alias-scrollbar-bg-l2: rgba(255, 255, 255, 0.28);
+  --dsw-alias-scrollbar-hover-l2: rgba(255, 255, 255, 0.42);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 6px var(--dsh-sidebar-inline-padding);
+  box-sizing: border-box;
+  background: var(--dsw-specific-sidebar-fill);
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  /* The sidebar is elevated above the conversation surface, so a revealed
+     scrollbar uses the l2 pair. .quietBars hides it without changing layout. */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* Rail geometry: 36x36 control boxes centered in the 56px rail. */
+.root.collapsed {
+  padding: 18px 10px 6px;
+}
+
+/* Scrollbars are a pointer affordance: rebinding the indirection pair to
+   transparent takes the thumb out of every nested scroll region while
+   preserving the gutter reservation, so revealing it never reflows a row. */
+.root.quietBars {
+  --dsh-scrollbar-thumb: transparent;
+  --dsh-scrollbar-thumb-hover: transparent;
+}
+
+/* Collapse phase 1: the frozen-width content fades out in place over 150ms. */
+.fading > * {
+  opacity: 0;
+  transition: opacity 150ms var(--ds-ease-in-out);
+}
+
+/* Wide-only content fades back in on expand remount. */
+.wide {
+  animation: wide-in 200ms var(--ds-ease-in-out);
+}
+
+@keyframes wide-in {
+  from { opacity: 0; }
+}
+
+/* At the rail settle the controls enter from the former rail right edge. */
+.railIn .iconButton,
+.railIn .newSession,
+.railIn .nav,
+.railIn .regionArea {
+  animation: rail-in 150ms var(--ds-ease-in-out) backwards;
+}
+
+.railIn .footArea {
+  animation: rail-fade-in 150ms var(--ds-ease-in-out) backwards;
+}
+
+@keyframes rail-in {
+  from {
+    opacity: 0;
+    transform: translateX(49px);
+  }
+}
+
+@keyframes rail-fade-in {
+  from { opacity: 0; }
+}
+
+.logoRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 60px;
+  padding: 8px 0 8px 4px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.collapsed .logoRow {
+  height: 36px;
+  padding: 0;
+  margin-bottom: 12px;
+  justify-content: flex-start;
+}
+
+/* A button only in behavior (New Session shortcut): the pointer cursor is the
+   sole affordance — no hover chrome on the mark. */
+.brand {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.iconButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iconButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.collapsed .iconButton {
+  width: 36px;
+  height: 36px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Rail logo swap: collapsed, the toggle rests as the emblem and hovering
+   reveals the panel icon — the expand affordance. */
+.collapsed .toggle .panelIcon {
+  display: none;
+}
+
+.collapsed .toggle:hover .panelIcon {
+  display: inline;
+}
+
+.collapsed .toggle:hover .railEmblem {
+  display: none;
+}
+
+/* New Session: the design's light pill against the blue column. */
+.newSession {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 8px 16px;
+  margin: 0 2px 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.newSession:hover {
+  background: var(--dsw-alias-button-floating-hover);
+}
+
+.collapsed .newSession {
+  align-self: flex-start;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0 0 12px;
+  gap: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+.collapsed .newSession:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.newSessionLabel {
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.collapsed .newSessionLabel {
+  max-width: 0;
+}
+
+/* Navigation block (design 首页: 配置 / 任务管理 / 会话管理), separated from
+   the browsing region by a hairline in the inverted border scale. */
+.nav {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  margin: 0 2px 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+}
+
+.collapsed .nav {
+  align-items: center;
+  margin: 0 0 8px;
+  border-bottom: none;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.navItem:hover {
+  background: var(--dsw-specific-sidebar-nav-item-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.navItemActive {
+  background: var(--dsw-specific-sidebar-nav-item-active);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.collapsed .navItem {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+}
+
+.navLabel {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Region seat: always mounted so the foot never moves. Its trailing margin
+   cancels the wide shell inset so the nested scrollbar sits at the edge. */
+.regionArea {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-left: -4px;
+  margin-right: calc(-1 * var(--dsh-sidebar-inline-padding));
+  padding-left: 4px;
+  overflow: hidden;
+}
+
+.collapsed .regionArea {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+}
+
+.footArea {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.settingsArea,
+.footerActions {
+  flex: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.footerActions {
+  display: flex;
+}
+
+.collapsed .footArea {
+  align-items: center;
+}
+
+.collapsed .settingsArea,
+.collapsed .footerActions {
+  display: flex;
+  justify-content: center;
+  width: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wide,
+  .fading > *,
+  .railIn .iconButton,
+  .railIn .newSession,
+  .railIn .nav,
+  .railIn .footArea,
+  .railIn .regionArea {
+    transition: none;
+    animation: none;
+  }
+}

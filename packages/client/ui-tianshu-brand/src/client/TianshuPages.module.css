@@ -1,0 +1,197 @@
+/* Management surface (设计稿 任务管理): a page filling the conversation area.
+
+   It lives in the click-through `shell.overlay` layer, which is
+   `position: absolute; inset: 0` over the WHOLE frame — sidebar included.
+   Covering the sidebar would trap the user on the page, because the navigation
+   that closes it lives there. So the page spans the layer as a grid whose first
+   track is the sidebar (left empty and click-through) and whose second track
+   carries the content.
+
+   The track width comes from `--dsh-tianshu-sidebar-width`, published by the
+   sidebar component from the width the frame already hands it. That keeps one
+   source of truth: no width is restated here, and a drag or collapse moves the
+   page with the column. */
+
+.root {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--dsh-tianshu-sidebar-width, 0px) minmax(0, 1fr);
+  /* The grid itself must not eat clicks: only the page pane opts back in, so
+     the sidebar showing through the first track stays operable. */
+  pointer-events: none;
+}
+
+.pane {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  pointer-events: auto;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+}
+
+.head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 32px 40px 20px;
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 34px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.caption {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 0 40px 40px;
+  overflow-y: auto;
+  /* Cards and tags on this page sit on the elevated layers, so the scroll
+     region draws the l2 thumb pair rather than the base-surface one. */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* States that are facts about the backend, not decoration: both say plainly
+   that there is nothing to show rather than implying a load. */
+.notice,
+.empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 21px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.notice {
+  margin-bottom: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  padding: 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cardName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.tag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-3);
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.cardBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.rowTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* A session with no title still has to be readable: this is the row's only
+   label, not supporting text beside one. `label-dimmed` is the placeholder
+   ink and renders at 1.26:1 on this surface; `label-tertiary` reaches only
+   3.71:1. `label-secondary` clears the 4.5:1 floor at 5.8:1, and italics
+   carry the "no title yet" distinction that the color no longer has to. */
+.rowUntitled {
+  color: var(--dsw-alias-label-secondary);
+  font-style: italic;
+}
