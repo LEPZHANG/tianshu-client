@@ -1,0 +1,583 @@
+/* Management surface (设计稿 任务管理): a page filling the conversation area.
+
+   It lives in the click-through `shell.overlay` layer, which is
+   `position: absolute; inset: 0` over the WHOLE frame — sidebar included.
+   Covering the sidebar would trap the user on the page, because the navigation
+   that closes it lives there. So the page spans the layer as a grid whose first
+   track is the sidebar (left empty and click-through) and whose second track
+   carries the content.
+
+   The track width comes from `--dsh-tianshu-sidebar-width`, published by the
+   sidebar component from the width the frame already hands it. That keeps one
+   source of truth: no width is restated here, and a drag or collapse moves the
+   page with the column. */
+
+.root {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--dsh-tianshu-sidebar-width, 0px) minmax(0, 1fr);
+  /* The grid itself must not eat clicks: only the page pane opts back in, so
+     the sidebar showing through the first track stays operable. */
+  pointer-events: none;
+}
+
+.pane {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  pointer-events: auto;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+}
+
+.head {
+  flex: none;
+  padding: 32px 40px 20px;
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 34px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.caption {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 0 40px 40px;
+  overflow-y: auto;
+  /* Cards and tags on this page sit on the elevated layers, so the scroll
+     region draws the l2 thumb pair rather than the base-surface one. */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* States that are facts about the backend, not decoration: both say plainly
+   that there is nothing to show rather than implying a load. */
+.notice,
+.empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 21px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.notice {
+  margin-bottom: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  padding: 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cardName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.tag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-3);
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.cardBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.rowTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* A session with no title still has to be readable: this is the row's only
+   label, not supporting text beside one. `label-dimmed` is the placeholder
+   ink and renders at 1.26:1 on this surface; `label-tertiary` reaches only
+   3.71:1. `label-secondary` clears the 4.5:1 floor at 5.8:1, and italics
+   carry the "no title yet" distinction that the color no longer has to. */
+.rowUntitled {
+  color: var(--dsw-alias-label-secondary);
+  font-style: italic;
+}
+
+/* ---- 会话管理: folder rail + filter column ---- */
+
+/* Two-axis layout: folders navigate on the left, state filters the right. */
+.sessionsBody {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  min-height: 0;
+}
+
+.rail {
+  flex: none;
+  width: 176px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.railHead {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* A row is the item button plus, for the active folder, its rename/delete
+   tools as siblings — buttons never nest inside buttons. */
+.railRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.railItem {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.railItem:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.railActive {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563EB;
+  font-weight: 500;
+}
+
+.railName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.railTool {
+  flex: none;
+  height: 22px;
+  padding: 0 5px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.railTool:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* An action, not a filter: the dashed border keeps it from reading as one. */
+.railAdd {
+  margin-top: 6px;
+  height: 30px;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.railAdd:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Global state row; retires inside a folder in favour of the scope bar. */
+.filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.chipActive {
+  border-color: #2563EB;
+  color: #2563EB;
+  font-weight: 500;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.chipCount {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.filtersSep {
+  width: 1px;
+  height: 16px;
+  background: var(--dsw-alias-border-l2);
+}
+
+/* In-folder scope bar: lighter utility strip, sub-filters count within scope. */
+.scopeBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 6px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-3);
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.scopeCount {
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.subChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.subChip:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.subChipActive {
+  border-color: #2563EB;
+  color: #2563EB;
+  font-weight: 500;
+}
+
+.exitFolder {
+  margin-left: auto;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.exitFolder:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Row interior: clickable title, tags, more-menu anchor. */
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rowTitleButton {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowTitleButton:not(:disabled):hover {
+  text-decoration: underline;
+}
+
+.rowTitleButton:disabled {
+  cursor: default;
+}
+
+.rowTags {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stateTag {
+  padding: 2px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-3);
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.stateTagArchived {
+  border-style: dashed;
+}
+
+.stateTagDeleted {
+  border-color: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.more {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-left: 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Recycle-bin row action. */
+.rowActionBtn {
+  flex: none;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 13px;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.rowActionBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Mutation rejection surfaced beside the list it concerns. */
+.errorLine {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 21px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* Dialog copy and footer buttons. */
+.dialogBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 21px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.btnGhost,
+.btnPrimary,
+.btnDanger {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 17px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btnGhost {
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+.btnPrimary {
+  border: 1px solid #2563EB;
+  background: #2563EB;
+  color: #fff;
+}
+
+.btnDanger {
+  border: 1px solid var(--dsw-alias-state-error-primary);
+  background: transparent;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* ---- 技能 page ---- */
+
+.skillSearch {
+  margin-left: auto;
+  height: 30px;
+  width: 220px;
+  padding: 4px 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.skillSearch:focus {
+  border-color: #2563EB;
+}
+
+.skillTitle {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* The composer's calling convention, rendered the way the composer reads it. */
+.skillCmd {
+  font-family: Consolas, "Courier New", monospace;
+  color: #2563EB;
+}
+
+.skillDesc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stateTagModel {
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #2563EB;
+}
+
+.rowActionPrimary {
+  border-color: #2563EB;
+  background: #2563EB;
+  color: #fff;
+}
+
+.rowActionPrimary:hover {
+  background: #1d4fd7;
+}
+
+.skillLine {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}

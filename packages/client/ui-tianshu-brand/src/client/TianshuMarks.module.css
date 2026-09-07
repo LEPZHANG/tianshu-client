@@ -1,0 +1,101 @@
+/* Tianshu wordmark typography: the platform name as a pure-type bilingual
+   lockup.
+
+   The glyphs come from an inlined woff2 subset of Source Han Serif CN Heavy
+   (思源宋体, SIL OFL 1.1; subsetting and embedding are license-permitted)
+   covering exactly 天枢平台TIANSHUPLATFORM, regenerated with fonttools via
+   `pyftsubset --text=天枢平台TIANSHUPLATFORM --flavor=woff2
+   --desubroutinize`. The package bundles no asset pipeline, so a data URI —
+   5.5KB — is both the build-free route and smaller than any request
+   overhead. Any other codepoint falls through to the system stack.
+
+   Government-and-tech posture chosen by the product owner after a variants
+   review: the serif cut carries the official-document register, the small
+   tracked Latin subtitle carries the institutional bilingual identity. The
+   colors ride the column's ink rebinds (deep navy on light glass, white on
+   dark glass); only the halo/rule pair needs theme-specific literals here. */
+
+@font-face {
+  font-family: 'TianshuWordmark';
+  src: url('data:font/woff2;base64,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') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  align-items: flex-start;   /* 使主标题和副标题左对齐 */
+  margin-top: 6px;          /* 整体下移，数值可自行调整（如 8px、16px） */
+}
+
+.wordmarkMain {
+  font-family: 'TianshuWordmark', 'STSong', 'SimSun', 'Helvetica Neue', serif;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 28px;
+  white-space: nowrap;
+}
+
+/* Subtitle row: the hairline rides the subtitle's mid-height and runs the
+   full row width — under the glyphs, out past them, and on beneath the
+   column toggle until the logo row's overflow clips it at the column edge.
+   The subtitle is struck through by the line, not spaced from it: its paint
+   order strokes a background-blue halo first so the glyphs occlude the line
+   while the letter gaps let it read through — the instrument-label look of
+   the G2 lockup. */
+.wordmarkSubRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.wordmarkRule {
+  position: absolute;
+  left: 0;
+  /* Reaches into the toggle's column band; the shell's .logoRow clips the
+     line at the column edge, so the overshoot needs no local geometry. */
+  right: -44px;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-0.5px);
+  /* Light glass column: the rule reads in deep navy. */
+  background: linear-gradient(90deg,
+    rgba(22, 37, 90, 0.35) 0%,
+    rgba(22, 37, 90, 0.35) 55%,
+    rgba(22, 37, 90, 0.05) 100%);
+  pointer-events: none;
+}
+
+.wordmarkSub {
+  position: relative;
+  z-index: 1;
+  font-family: 'TianshuWordmark', 'Helvetica Neue', serif;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  line-height: 12px;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+  /* Halo stroke in the column's top glass stop (the logo row sits at the
+     column head) so the glyphs knock the line out around themselves. */
+  paint-order: stroke fill;
+  -webkit-text-stroke: 5px #E2ECFC;
+}
+
+/* Dark theme: navy glass column — the rule flips to white and the halo
+   matches the dark glass top stop. */
+:global(body[data-ds-dark-theme]) .wordmarkRule {
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.40) 0%,
+    rgba(255, 255, 255, 0.40) 55%,
+    rgba(255, 255, 255, 0.04) 100%);
+}
+
+:global(body[data-ds-dark-theme]) .wordmarkSub {
+  -webkit-text-stroke: 5px rgb(23, 45, 92);
+}
