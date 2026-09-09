@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-08-composer-drop-file-path.md
+2026-09-08-composer-drop-file-path.md: 4c8d44b7d5298ebc6556d6cf3e7777eaccc5b3ef
+2026-09-08-composer-drop-file-path.zh.md: 2748b6e2423998a543762aad5be360c6b78e4ce4
