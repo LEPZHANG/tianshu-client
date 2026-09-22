@@ -1,0 +1,7 @@
+{
+  "steps": [
+    { "op": "initialize" },
+    { "op": "newSession" },
+    { "op": "prompt", "text": "Use the convert_document tool exactly once to convert report.docx to pdf, then reply with exactly DONE. Do not describe the file." }
+  ]
+}
