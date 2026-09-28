@@ -1,0 +1,199 @@
+/* NEW SESSION hero: fish + two-line greeting, workspace chip floating below
+   the shared InputBar card. The input itself is InputBar — only stack
+   geometry and the chip live here. */
+
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-width: 0;
+  padding: 0 24px;
+}
+
+/* Cap matches the InputBar card. Glow may paint past the sides. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  /* figma 75:8208: 12 between title block / workspace / card. */
+  gap: 12px;
+  width: 100%;
+  max-width: var(--dsh-composer-card-max-width);
+  overflow: visible;
+}
+
+/* The two greeting lines travel as one block: the day-part greeting + name
+   on the first line (figma 34:10411 proportions, gap 10, 26/32 wt500), the
+   supporting ask below it in the muted secondary ink. */
+.headlineBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;   /* 改为 center/flex-start */
+  gap: 4px;
+}
+
+.headline {
+  display: flex;
+  align-items: center;
+  justify-content:flex-start; /* 改为 center/flex-start */
+  column-gap: 10px;
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.headlineSub {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-secondary);
+  text-align: left;   /* center left */
+}
+
+/* Keep hover detection on a stationary box while the mark moves within it. */
+.fishHitbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Keep the hero mark in the same primary ink as its headline. */
+.fish {
+  color: var(--dsw-alias-label-primary);
+  transform-origin: 50% 60%;
+}
+
+@keyframes hero-fish-swim {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+
+  35% {
+    transform: translate(-1px, -1px) rotate(-5deg);
+  }
+
+  70% {
+    transform: translate(1px, 0) rotate(3deg);
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .fishHitbox:hover .fish {
+    animation: hero-fish-swim var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+  }
+}
+
+/* Workspace row sits 12px above the input card (figma y80 → y112). The blue
+   glow lives with the owner (ConversationRoot .heroGlow) so it can center on
+   the input card. */
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Must beat `.body > :not(.glow)` specificity so the open Menu (and its
+   right-hand submenu) paints above the InputBar card. */
+.body > .workspaceRow {
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  /* figma 75:8208 workspace row: px 8 above the card. */
+  padding-left: 16px;/* 改为 0 之前8px，或改为与输入卡内边距相同的值（如 16px） */
+}
+
+/* Folder + label + chevron — a floating pill below the input card: elevated
+   surface fill, hairline border, level-2 shadow (the same card treatment the
+   composer uses). Fill deepens only on hover / open. */
+.workspace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(100%, 360px);
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: var(--dsw-specific-input-major);
+  box-shadow: var(--dsw-shadow-lv2);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.workspace:not(:disabled):hover,
+.workspace[aria-expanded='true'] {
+  border-color: var(--dsw-alias-border-l3);
+}
+
+/* Locked form (bound guidance state): a static echo — no hover feedback, no
+   pointer affordance; label keeps full contrast. */
+.workspace:disabled {
+  cursor: default;
+}
+
+.folder {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+}
+
+.workspaceLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+}
+
+/* Dialog field: 44 tall on the modal's 332 content column, r22, hairline
+   border, pad 14/7, 14/22 wt400 primary text, caption placeholder. Focus
+   keeps the resting border (design shows no focus ring). */
+.modalInput {
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 7px 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 22px;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.modalInput::placeholder {
+  color: var(--dsw-alias-label-caption);
+}
+
+.modalInput:disabled {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+.modalAction {
+  min-width: 72px;
+}
+
+.modalError {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-state-error-primary);
+}

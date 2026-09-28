@@ -1,0 +1,380 @@
+/* Tianshu sidebar column: the ice-blue frosted glass panel (S4 finish).
+
+   The light-theme column is a LIGHT surface, so every neutral ink token the
+   nested surfaces read must land DARK-on-glass: the column rebinds them to a
+   deep-navy scale for its own subtree (the same local-rebind pattern the
+   shipped sidebar uses for its scrollbar pair) rather than overriding them
+   globally, which would repaint the whole application. The dark theme keeps
+   the white inverted scale: its glass stops are translucent navy over the
+   dark surfaces, so `body[data-ds-dark-theme]` re-rebinds the same tokens
+   back — that attribute is ui-theme's canonical dark signal, never the theme
+   id. Everything below inherits the right scale without knowing which glass
+   it sits on. */
+
+.root {
+  --dsh-sidebar-inline-padding: 12px;
+
+  /* Deep-navy ink scale for the light glass column (dark theme overrides below). */
+  --dsw-alias-label-primary: #16255A;
+  --dsw-alias-label-secondary: #3B4C7E;
+  --dsw-alias-label-tertiary: rgba(59, 76, 126, 0.8);
+  --dsw-alias-label-caption: rgba(59, 76, 126, 0.65);
+  --dsw-alias-label-dimmed: rgba(59, 76, 126, 0.5);
+  --dsw-alias-border-l1: rgba(22, 37, 90, 0.1);
+  --dsw-alias-border-l2: rgba(22, 37, 90, 0.16);
+  --dsw-alias-border-l3: rgba(22, 37, 90, 0.22);
+  --dsw-alias-border-l4: rgba(22, 37, 90, 0.28);
+  --dsw-alias-interactive-bg-hover: rgba(22, 37, 90, 0.08);
+  --dsw-alias-interactive-bg-active: rgba(22, 37, 90, 0.14);
+  --dsw-alias-interactive-bg-hover-solid: rgba(22, 37, 90, 0.12);
+  --dsw-alias-interactive-bg-hover-accent: rgba(22, 37, 90, 0.16);
+  --dsw-alias-button-elevated-fill: rgba(255, 255, 255, 0.55);
+  --dsw-alias-button-floating-fill: rgba(255, 255, 255, 0.55);
+  --dsw-alias-button-floating-hover: rgba(255, 255, 255, 0.75);
+  --dsw-specific-sidebar-nav-item-hover: rgba(22, 37, 90, 0.08);
+  --dsw-specific-sidebar-nav-item-active: rgba(22, 37, 90, 0.14);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(22, 37, 90, 0.2);
+
+  /* The scrollbar indirection pair stays bound to the canonical l2 elevation
+     spelling (ui-theme's scrollbar gate requires the pair to name one target).
+     What changes for the glass panel is the ELEVATION TOKENS themselves,
+     rebound here with the rest of the ink scale, so a nested list draws the
+     right thumb without this column special-casing the indirection. */
+  --dsw-alias-scrollbar-bg-l2: rgba(22, 37, 90, 0.35);
+  --dsw-alias-scrollbar-hover-l2: rgba(22, 37, 90, 0.5);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 6px var(--dsh-sidebar-inline-padding);
+  box-sizing: border-box;
+  /* Frosted glass: the translucent fill token plus a backdrop blur, so
+     whatever the window paints behind the column reads as softly blurred
+     through it. */
+  background: var(--dsw-specific-sidebar-fill);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  /* The sidebar is elevated above the conversation surface, so a revealed
+     scrollbar uses the l2 pair. .quietBars hides it without changing layout. */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* Dark theme: translucent navy glass, so the ink scale flips back to the
+   white family — the same rebind set the saturated-blue column used. */
+:global(body[data-ds-dark-theme]) .root {
+  --dsw-alias-label-primary: rgba(255, 255, 255, 0.95);
+  --dsw-alias-label-secondary: rgba(255, 255, 255, 0.78);
+  --dsw-alias-label-tertiary: rgba(255, 255, 255, 0.6);
+  --dsw-alias-label-caption: rgba(255, 255, 255, 0.55);
+  --dsw-alias-label-dimmed: rgba(255, 255, 255, 0.45);
+  --dsw-alias-border-l1: rgba(255, 255, 255, 0.1);
+  --dsw-alias-border-l2: rgba(255, 255, 255, 0.18);
+  --dsw-alias-border-l3: rgba(255, 255, 255, 0.24);
+  --dsw-alias-border-l4: rgba(255, 255, 255, 0.3);
+  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.12);
+  --dsw-alias-interactive-bg-active: rgba(255, 255, 255, 0.18);
+  --dsw-alias-interactive-bg-hover-solid: rgba(255, 255, 255, 0.16);
+  --dsw-alias-interactive-bg-hover-accent: rgba(255, 255, 255, 0.2);
+  --dsw-alias-button-elevated-fill: rgba(255, 255, 255, 0.16);
+  --dsw-alias-button-floating-fill: rgba(255, 255, 255, 0.16);
+  --dsw-alias-button-floating-hover: rgba(255, 255, 255, 0.24);
+  --dsw-specific-sidebar-nav-item-hover: rgba(255, 255, 255, 0.12);
+  --dsw-specific-sidebar-nav-item-active: rgba(255, 255, 255, 0.2);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(255, 255, 255, 0.28);
+  --dsw-alias-scrollbar-bg-l2: rgba(255, 255, 255, 0.28);
+  --dsw-alias-scrollbar-hover-l2: rgba(255, 255, 255, 0.42);
+}
+
+/* Rail geometry: 36x36 control boxes centered in the 56px rail. */
+.root.collapsed {
+  padding: 18px 10px 6px;
+}
+
+/* Scrollbars are a pointer affordance: rebinding the indirection pair to
+   transparent takes the thumb out of every nested scroll region while
+   preserving the gutter reservation, so revealing it never reflows a row. */
+.root.quietBars {
+  --dsh-scrollbar-thumb: transparent;
+  --dsh-scrollbar-thumb-hover: transparent;
+}
+
+/* Collapse phase 1: the frozen-width content fades out in place over 150ms. */
+.fading > * {
+  opacity: 0;
+  transition: opacity 150ms var(--ds-ease-in-out);
+}
+
+/* Wide-only content fades back in on expand remount. */
+.wide {
+  animation: wide-in 200ms var(--ds-ease-in-out);
+}
+
+@keyframes wide-in {
+  from { opacity: 0; }
+}
+
+/* At the rail settle the controls enter from the former rail right edge. */
+.railIn .iconButton,
+.railIn .newSession,
+.railIn .nav,
+.railIn .regionArea {
+  animation: rail-in 150ms var(--ds-ease-in-out) backwards;
+}
+
+.railIn .footArea {
+  animation: rail-fade-in 150ms var(--ds-ease-in-out) backwards;
+}
+
+@keyframes rail-in {
+  from {
+    opacity: 0;
+    transform: translateX(49px);
+  }
+}
+
+@keyframes rail-fade-in {
+  from { opacity: 0; }
+}
+
+.logoRow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 60px;
+  /* The left pad seats the wordmark on the navigation icon column (2px row
+     margin + 12px row padding below); the top/bottom split sinks the lockup
+     5px below center so the subtitle line rides clear of the column head. */
+  padding: 13px 0 3px 14px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.collapsed .logoRow {
+  height: 36px;
+  padding: 0;
+  margin-bottom: 12px;
+  justify-content: flex-start;
+}
+
+/* A button only in behavior (New Session shortcut): the pointer cursor is the
+   sole affordance — no hover chrome on the mark. No overflow clip here: the
+   wordmark's full-row hairline reaches past the brand box toward the toggle,
+   and .logoRow's own clip is the edge that stops it. */
+.brand {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.iconButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.iconButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.collapsed .iconButton {
+  width: 36px;
+  height: 36px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* New Session: a plain nav-styled row — same geometry, ink, and hover as the
+   navigation items below it, so the column reads as one aligned list. */
+.newSession {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  /* Same 2px breathing room as the nav rows inside .nav: the four rows read
+     as one evenly spaced list. */
+  margin: 0 2px 2px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.newSession:hover {
+  background: var(--dsw-specific-sidebar-nav-item-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.collapsed .newSession {
+  align-self: flex-start;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0 0 12px;
+  gap: 0;
+  /* The wide row is a left-aligned nav row; the rail re-centers the lone icon
+     to match .collapsed .navItem. */
+  justify-content: center;
+}
+
+.collapsed .newSession:hover {
+  background: var(--dsw-specific-sidebar-nav-item-hover);
+}
+
+.newSessionLabel {
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.collapsed .newSessionLabel {
+  max-width: 0;
+}
+
+/* Navigation block (design 首页: 配置 / 任务管理 / 会话管理), separated from
+   the browsing region by a hairline in the inverted border scale. */
+.nav {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  margin: 0 2px 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+}
+
+.collapsed .nav {
+  align-items: center;
+  margin: 0 0 8px;
+  border-bottom: none;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.navItem:hover {
+  background: var(--dsw-specific-sidebar-nav-item-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.navItemActive {
+  background: var(--dsw-specific-sidebar-nav-item-active);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.collapsed .navItem {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+}
+
+.navLabel {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Region seat: always mounted so the foot never moves. Its trailing margin
+   cancels the wide shell inset so the nested scrollbar sits at the edge. */
+.regionArea {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-left: -4px;
+  margin-right: calc(-1 * var(--dsh-sidebar-inline-padding));
+  padding-left: 4px;
+  overflow: hidden;
+}
+
+.collapsed .regionArea {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+}
+
+.footArea {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.settingsArea,
+.footerActions {
+  flex: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.footerActions {
+  display: flex;
+}
+
+.collapsed .footArea {
+  align-items: center;
+}
+
+.collapsed .settingsArea,
+.collapsed .footerActions {
+  display: flex;
+  justify-content: center;
+  width: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wide,
+  .fading > *,
+  .railIn .iconButton,
+  .railIn .newSession,
+  .railIn .nav,
+  .railIn .footArea,
+  .railIn .regionArea {
+    transition: none;
+    animation: none;
+  }
+}

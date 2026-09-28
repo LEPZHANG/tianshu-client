@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-24-pdf-writer-import-and-output-collisions.md
+2026-09-24-pdf-writer-import-and-output-collisions.md: 10c1a46f147e103b6af7cc7eebe100a8c354a402
+2026-09-24-pdf-writer-import-and-output-collisions.zh.md: 57738ca992247d0ea32da22154f2a0006e5c9079

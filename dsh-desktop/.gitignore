@@ -1,0 +1,23 @@
+node_modules/
+out/
+dist/
+dist-dev/
+.DS_Store
+*.log
+coverage/
+build/icon.iconset/
+build/app-icon.iconset/
+build/icon-1024.png
+# The offline conversion toolkit and the GB/T 9704—2012 typefaces it carries. Both are fetched or
+# supplied per build machine: the binaries are hundreds of megabytes, and the 方正/中易 typefaces are
+# commercially licensed, so committing them to a public repository would be redistribution.
+# The directory itself stays tracked — electron-builder's extraResources needs it to exist.
+build/tools/*
+!build/tools/.gitkeep
+build/fonts/
+.env
+.env.*
+!.env.example
+.coaligne/
+.coaligneignore
+

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-18-tianshu-brand-layer.md
+2026-08-18-tianshu-brand-layer.md: 7f2ccaf8b0810291b09fd0b8ab734bee148220d5
+2026-08-18-tianshu-brand-layer.zh.md: c93a84bef61482e0bf19c081e83698ccd04df05d
