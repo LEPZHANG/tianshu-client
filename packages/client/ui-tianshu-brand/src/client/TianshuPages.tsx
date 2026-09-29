@@ -87,6 +87,11 @@ export function TianshuPages(props: TianshuPagesComponentProps) {
         : active === 'skills' ? 'page.skills.caption'
           : active === 'mcp' ? 'page.mcp.caption'
             : 'page.connector.caption'
+  // The redesigned pages carry the brand-style header (glyph + letterspaced
+  // subtitle + right caption); the rest keep the plain stacked one.
+  const subKey = active === 'suites' ? 'page.suites.sub'
+    : active === 'skills' ? 'page.skills.sub'
+      : undefined
 
   return (
     <div className={css.root}>
@@ -97,10 +102,24 @@ export function TianshuPages(props: TianshuPagesComponentProps) {
             through the sidebar's current-session watch, so the page needs no
             dedicated exit affordance. */}
         <header className={css.head}>
-          <div>
-            <h1 className={css.title}>{props.t(heading)}</h1>
-            <p className={css.caption}>{props.t(caption)}</p>
-          </div>
+          {subKey === undefined ? (
+            <div>
+              <h1 className={css.title}>{props.t(heading)}</h1>
+              <p className={css.caption}>{props.t(caption)}</p>
+            </div>
+          ) : (
+            <div className={css.headRow}>
+              <span className={css.glyphBox}>
+                {active === 'suites' ? <SuiteGlyph size={22} /> : <SkillGlyph size={22} />}
+              </span>
+              <div>
+                <h1 className={css.headTitle}>{props.t(heading)}</h1>
+                <div className={css.headSub}>{props.t(subKey)}</div>
+              </div>
+              <div className={css.headLine} />
+              <p className={css.headCaption}>{props.t(caption)}</p>
+            </div>
+          )}
         </header>
 
         <div className={css.body}>
@@ -147,18 +166,94 @@ function TasksPage({ t }: { t: TianshuPagesComponentProps['t'] }) {
   )
 }
 
+/* Presentation-only demo suites, appended after the host catalogue. The host
+   catalogue today ships one suite; these rows keep the square's layout and
+   interactions reviewable until the host carries them. The `demo:` id prefix
+   routes every mutation attempt to a notice instead of a doomed RPC. */
+const DEMO_SUITES: readonly [SuiteEntry, ...SuiteEntry[]] = [
+  {
+    id: 'demo:gov-writing',
+    title: '公文写作组',
+    tag: '政务',
+    description: '通知通告、请示报告、会议纪要三类上行文与下行文，文种判定、结构骨架与用语规范一次配齐。',
+    installed: false,
+    current: false,
+    skills: [
+      { name: 'gov-notice', title: '通知通告', summary: '判定文种后按「缘由—事项—要求」成文，收敛用语与格式，附成稿自检清单。' },
+      { name: 'gov-request', title: '请示报告', summary: '请示一文一事、报告分综合与专题，缘由与请求分项陈述，遵循上行文格式。' },
+      { name: 'gov-minutes', title: '会议纪要', summary: '议定事项与讨论过程分列，三要素缺项如实标注，不补写会上未议内容。' },
+    ],
+  },
+  {
+    id: 'demo:engineering',
+    title: '工程研发台',
+    tag: '研发',
+    description: '代码评审、接口文档、发布说明、故障复盘四个研发交付场景，按可验收的清单式规范成文。',
+    installed: false,
+    current: false,
+    skills: [
+      { name: 'code-review', title: '代码评审', summary: '按正确性、边界条件、并发与可测性逐项走查，意见按阻塞与建议分级输出。' },
+      { name: 'api-doc', title: '接口文档', summary: '按端点、参数、示例与错误码四段成文，字段口径与实现保持一致。' },
+      { name: 'release-notes', title: '发布说明', summary: '按用户可感知的变化归类（新增 / 变更 / 修复 / 已知问题），条目带影响面与升级注意。' },
+      { name: 'incident-review', title: '故障复盘', summary: '按时间线还原、根因分析、改进项与验证标准成文，追责性表述不进入正文。' },
+    ],
+  },
+]
+
+/** Whether one suite id belongs to the presentation-only demo set. */
+const isDemoSuite = (suiteId: string): boolean => suiteId.startsWith('demo:')
+
+/** The suite glyph: a solid 2×2 grid, the shared suite mark. */
+function SuiteGlyph({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1" />
+      <rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1" />
+      <rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1" />
+      <rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1" />
+    </svg>
+  )
+}
+
+/** The skill glyph: three solid bars, the shared skill mark. */
+function SkillGlyph({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="2.5" y="3.2" width="11" height="1.7" rx="0.85" />
+      <rect x="2.5" y="7.15" width="11" height="1.7" rx="0.85" />
+      <rect x="2.5" y="11.1" width="7" height="1.7" rx="0.85" />
+    </svg>
+  )
+}
+
+/** Sort of the square: catalogue order vs reversed (presentation-only). */
+type SuiteSort = 'hot' | 'new'
+
+/** Scope of the square: every catalogued suite vs the installed ones. */
+type SuiteScope = 'all' | 'installed'
+
 /**
- * The 专家套件 catalogue, driven by the host's suite RPCs. Install writes
+ * The 专家套件 square, driven by the host's suite RPCs. Install writes
  * the bundled skills under the user skill root (the filesystem provider
  * discovers them on its next scan, so a freshly installed skill appears in
  * the composer's `/` menu without a restart); uninstall removes them unless
  * the user edited one — the host enforces that, the page only reports.
+ *
+ * The demo suites ride along presentation-only: their ids are not host ids,
+ * so a mutation attempt on one surfaces a notice instead of a doomed RPC.
  */
 function SuitesPage(props: TianshuPagesComponentProps) {
-  const { t, listSuites, installSuite, uninstallSuite } = props
+  const { t, listSuites, installSuite, uninstallSuite, listSkills, sendSkillToComposer, actions } = props
   const [suites, setSuites] = useState<readonly SuiteEntry[] | undefined>(undefined)
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [busyId, setBusyId] = useState<string | undefined>(undefined)
+  const [hostSkillNames, setHostSkillNames] = useState<readonly string[] | undefined>(undefined)
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
+  const [heroIndex, setHeroIndex] = useState(0)
+  const [sort, setSort] = useState<SuiteSort>('hot')
+  const [scope, setScope] = useState<SuiteScope>('all')
+  const [enabled, setEnabled] = useState<Readonly<Record<string, boolean>>>({})
+  const [hint, setHint] = useState<string | undefined>(undefined)
 
   // One load on mount; a refetch after each mutation rides the mutation's
   // own echo (the RPC returns the re-projected catalogue).
@@ -173,9 +268,37 @@ function SuitesPage(props: TianshuPagesComponentProps) {
     // The injected face is stable for the registration's lifetime.
   }, [])
 
+  // The per-skill "in place" facts come from the current session's skill
+  // catalogue; a rejection or no-session undefined leaves the install-state
+  // fallback in charge.
+  useEffect(() => {
+    let cancelled = false
+    listSkills()
+      .then((rows) => {
+        if (!cancelled) setHostSkillNames(rows === undefined ? undefined : rows.map(row => row.name))
+      })
+      .catch(() => { /* the install-state fallback stands in */ })
+    return () => { cancelled = true }
+    // The injected face is stable for the registration's lifetime.
+  }, [])
+
+  const allSuites: readonly SuiteEntry[] = [...(suites ?? []), ...DEMO_SUITES]
+  // The demo set is a non-empty tuple, so the fallback keeps hero total.
+  const hero = allSuites[heroIndex % allSuites.length] ?? DEMO_SUITES[0]
+
+  // The hero carousel advances itself while the square shows; opening a
+  // detail view retires the timer so the slide never moves under the user.
+  useEffect(() => {
+    if (selectedId !== undefined) return
+    const timer = window.setInterval(() => { setHeroIndex(index => (index + 1) % allSuites.length) }, 5000)
+    return () => { window.clearInterval(timer) }
+    // Restart only when the detail view opens/closes or the catalogue size moves.
+  }, [selectedId, allSuites.length])
+
   /** Run one suite mutation, installing the echoed catalogue. */
   const mutate = (suiteId: string, action: (id: string) => Promise<readonly SuiteEntry[]>): void => {
     setFailure(undefined)
+    setHint(undefined)
     setBusyId(suiteId)
     action(suiteId)
       .then((rows) => { setSuites(rows); setBusyId(undefined) })
@@ -184,6 +307,22 @@ function SuitesPage(props: TianshuPagesComponentProps) {
         setBusyId(undefined)
       })
   }
+
+  /** Install one suite; demo suites answer with a notice, not an RPC. */
+  const onInstall = (suite: SuiteEntry): void => {
+    if (isDemoSuite(suite.id)) { setHint(t('page.suites.demoNotice')); return }
+    mutate(suite.id, installSuite)
+  }
+
+  /** Uninstall one suite; demo suites answer with a notice, not an RPC. */
+  const onUninstall = (suite: SuiteEntry): void => {
+    if (isDemoSuite(suite.id)) { setHint(t('page.suites.demoNotice')); return }
+    mutate(suite.id, uninstallSuite)
+  }
+
+  /** Whether one skill of the suite is discoverable by the skills page. */
+  const isPlaced = (suite: SuiteEntry, name: string): boolean =>
+    hostSkillNames !== undefined ? hostSkillNames.includes(name) : suite.installed
 
   if (failure !== undefined) {
     return (
@@ -203,90 +342,240 @@ function SuitesPage(props: TianshuPagesComponentProps) {
     )
   }
 
+  const selected = allSuites.find(suite => suite.id === selectedId)
+  if (selected !== undefined) {
+    return (
+      <SuiteDetail
+        suite={selected}
+        ready={selected.skills.filter(skill => isPlaced(selected, skill.name)).length}
+        placed={name => isPlaced(selected, name)}
+        enabled={enabled[selected.id] ?? true}
+        busy={busyId === selected.id}
+        t={t}
+        onToggleEnable={() => { setEnabled(prev => ({ ...prev, [selected.id]: !(prev[selected.id] ?? true) })) }}
+        onBack={() => { setSelectedId(undefined) }}
+        onInstall={() => { onInstall(selected) }}
+        onUninstall={() => { onUninstall(selected) }}
+        onSend={(name) => { if (sendSkillToComposer(name)) actions.clear() }}
+      />
+    )
+  }
+
+  const ordered = sort === 'hot' ? allSuites : [...allSuites].reverse()
+  const visible = ordered.filter(suite => scope === 'all' || suite.installed)
+
   return (
     <section>
-      <h2 className={css.sectionTitle}>{t('page.suites.catalogue')}</h2>
-      <div className={css.grid}>
-        {suites.map(suite => (
-          <article key={suite.id} className={css.card}>
-            <div className={css.cardHead}>
-              <span className={css.cardName}>{suite.title}</span>
-              <span className={css.tag}>{suite.tag}</span>
-            </div>
-            <p className={css.cardBody}>{suite.description}</p>
-            <ul className={css.suiteSkills}>
-              {suite.skills.map(skill => (
-                <li key={skill.name} className={css.suiteSkill}>
-                  <span className={css.suiteSkillName}>
-                    {skill.title}
-                    <code className={css.suiteSkillCmd}>/{skill.name}</code>
-                  </span>
-                  <span className={css.suiteSkillDesc}>{skill.summary}</span>
-                </li>
-              ))}
-            </ul>
-            <div className={css.cardFoot}>
+      <div className={css.hero}>
+        <div className={css.heroMain}>
+          <div className={css.heroDots}>
+            {allSuites.map((suite, index) => (
+              <button
+                key={suite.id} type="button"
+                className={clsx(css.heroDot, index === heroIndex % allSuites.length && css.heroDotOn)}
+                aria-label={suite.title}
+                onClick={() => { setHeroIndex(index) }}
+              />
+            ))}
+          </div>
+          <div className={css.heroTitle}>{hero.title}</div>
+          <p className={css.heroDesc}>{hero.description}</p>
+          <button type="button" className={css.heroBtn} onClick={() => { setHint(t('page.suites.createNotice')) }}>
+            {t('page.suites.heroCreate')}
+          </button>
+        </div>
+        <div className={css.heroPills}>
+          {allSuites.map(suite => (
+            <button key={suite.id} type="button" className={css.heroPill} onClick={() => { setSelectedId(suite.id) }}>
+              <SkillGlyph size={14} />{suite.title}
+            </button>
+          ))}
+        </div>
+      </div>
+      {hint !== undefined && <p className={css.hintLine} role="status">{hint}</p>}
+
+      <div className={css.tabsRow}>
+        <button type="button" className={clsx(css.tab, scope === 'all' && css.tabOn)} onClick={() => { setScope('all') }}>
+          {t('page.suites.square')}<span className={css.tabCount}>{allSuites.length}</span>
+        </button>
+        <button type="button" className={clsx(css.tab, scope === 'installed' && css.tabOn)} onClick={() => { setScope('installed') }}>
+          {t('page.suites.installedTab')}<span className={css.tabCount}>{allSuites.filter(suite => suite.installed).length}</span>
+        </button>
+        <span className={css.seg}>
+          <button type="button" className={clsx(css.segBtn, sort === 'hot' && css.segBtnOn)} onClick={() => { setSort('hot') }}>{t('page.suites.hot')}</button>
+          <button type="button" className={clsx(css.segBtn, sort === 'new' && css.segBtnOn)} onClick={() => { setSort('new') }}>{t('page.suites.newest')}</button>
+        </span>
+      </div>
+
+      <div className={css.suiteGrid}>
+        {visible.map((suite) => {
+          const ready = suite.skills.filter(skill => isPlaced(suite, skill.name)).length
+          return (
+            <article key={suite.id} className={css.suiteCard} onClick={() => { setSelectedId(suite.id) }}>
               {suite.installed
                 ? (
-                  <>
-                    <span className={clsx(css.stateTag, css.stateTagModel)}>
-                      {t(suite.current ? 'page.suites.installed' : 'page.suites.outdated')}
-                    </span>
-                    {/* A shipped body that changed under an install makes 卸载 a no-op: the file no
-                        longer matches the bundle, so it counts as the user's own and survives. */}
-                    {!suite.current && (
-                      <button
-                        type="button" className={clsx(css.rowActionBtn, css.rowActionPrimary)}
-                        disabled={busyId === suite.id}
-                        onClick={() => { mutate(suite.id, installSuite) }}
-                      >
-                        {t('page.suites.reinstall')}
-                      </button>
-                    )}
-                    <button
-                      type="button" className={css.rowActionBtn}
-                      disabled={busyId === suite.id}
-                      onClick={() => { mutate(suite.id, uninstallSuite) }}
-                    >
-                      {t('page.suites.uninstall')}
-                    </button>
-                  </>
+                  <span className={css.suiteCheck} role="img" aria-label={t('page.suites.inPlace')}>
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 8.5l3.2 3.2L13 5" /></svg>
+                  </span>
                 )
                 : (
                   <button
-                    type="button" className={clsx(css.rowActionBtn, css.rowActionPrimary)}
+                    type="button" className={css.suitePlus} aria-label={t('page.suites.install')}
                     disabled={busyId === suite.id}
-                    onClick={() => { mutate(suite.id, installSuite) }}
-                  >
-                    {t('page.suites.install')}
-                  </button>
+                    onClick={(event) => { event.stopPropagation(); onInstall(suite) }}
+                  >+</button>
                 )}
-              <span className={css.cardMeta}>{t('page.suites.skillCount')}{suite.skills.length}</span>
-            </div>
-          </article>
-        ))}
+              <span className={css.glyphBox}><SuiteGlyph /></span>
+              <div className={css.suiteName}>{suite.title}</div>
+              <div className={css.suiteMeta}>{suite.tag} · {t('page.suites.official')}</div>
+              <p className={css.suiteDesc}>{suite.description}</p>
+              <div className={css.suiteFoot}>
+                <span>{suite.skills.length} {t('page.suites.skillsUnit')}</span>
+                <span className={css.suiteState}>
+                  {suite.installed
+                    ? `${t('page.suites.inPlace')} ${ready}/${suite.skills.length}`
+                    : t('page.suites.notInstalled')}
+                  {/* A shipped body that changed under an install: uninstall would preserve the
+                      outdated files, so the card flags the state and the detail offers reinstall. */}
+                  {suite.installed && !suite.current && (
+                    <>
+                      {' · '}
+                      <span className={css.suiteOutdated}>{t('page.suites.outdated')}</span>
+                    </>
+                  )}
+                </span>
+              </div>
+            </article>
+          )
+        })}
       </div>
       <p className={css.notice}>{t('page.suites.installNote')}</p>
     </section>
   )
 }
 
+/** Props of {@link SuiteDetail}. */
+interface SuiteDetailProps {
+  suite: SuiteEntry
+  /** How many of the suite's skills the skills page currently recognizes. */
+  ready: number
+  /** Per-skill placement predicate — the same facts the count derives from. */
+  placed: (name: string) => boolean
+  enabled: boolean
+  busy: boolean
+  t: TianshuPagesComponentProps['t']
+  onToggleEnable: () => void
+  onBack: () => void
+  onInstall: () => void
+  onUninstall: () => void
+  onSend: (name: string) => void
+}
+
 /**
- * One catalogued skill row. Fields mirror what a SKILL.md frontmatter
- * carries; `body` is the condensed rule set the detail dialog shows.
+ * One suite's detail view: the header card with the enable toggle, the quick
+ * command rows (each one sends to the composer), and the knowledge rows
+ * carrying the per-skill placement state.
+ */
+function SuiteDetail(props: SuiteDetailProps) {
+  const { suite, t } = props
+  return (
+    <section>
+      <button type="button" className={css.backLink} onClick={props.onBack}>← {t('page.suites.backSquare')}</button>
+      <div className={css.detailHead}>
+        <div className={css.detailHeadTop}>
+          <span className={css.glyphBox}><SuiteGlyph /></span>
+          <div className={css.detailTitleBox}>
+            <div className={css.detailTitleLine}>
+              <span className={css.detailTitle}>{suite.title}</span>
+              <span className={css.detailTag}>{suite.tag}</span>
+            </div>
+            <div className={css.detailOrigin}>{t('page.suites.official')}</div>
+          </div>
+          <button
+            type="button"
+            className={clsx(css.detailToggle, props.enabled && css.detailToggleOn)}
+            aria-pressed={props.enabled}
+            onClick={props.onToggleEnable}
+          >
+            <span>{t('page.suites.enable')}</span>
+            <span className={css.toggleKnob} />
+          </button>
+        </div>
+        <p className={css.detailDesc}>{suite.description}</p>
+        <div className={css.detailRecog}>
+          <span>{t('page.suites.recognized')} {props.ready}/{suite.skills.length}</span>
+          {!isDemoSuite(suite.id) && (
+            <>
+              {/* A shipped body that changed under an install: reinstall overwrites the user's
+                  edited skills, so it sits beside 卸载 rather than replacing it. */}
+              {suite.installed && !suite.current && (
+                <button type="button" className={clsx(css.rowActionBtn, css.rowActionPrimary)} disabled={props.busy} onClick={props.onInstall}>
+                  {t('page.suites.reinstall')}
+                </button>
+              )}
+              {suite.installed
+                ? (
+                  <button type="button" className={css.rowActionBtn} disabled={props.busy} onClick={props.onUninstall}>
+                    {t('page.suites.uninstall')}
+                  </button>
+                )
+                : (
+                  <button type="button" className={clsx(css.rowActionBtn, css.rowActionPrimary)} disabled={props.busy} onClick={props.onInstall}>
+                    {t('page.suites.install')}
+                  </button>
+                )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <h2 className={css.sectionTitle}>{t('page.suites.quickCmds')} ({suite.skills.length})</h2>
+      {suite.skills.map(skill => (
+        <button key={skill.name} type="button" className={css.cmdRow} onClick={() => { props.onSend(skill.name) }}>
+          <code className={css.cmdPill}>/{skill.name}</code>
+          <span className={css.cmdTitle}>{skill.title}</span>
+          <span className={css.cmdArrow} aria-hidden="true">→</span>
+        </button>
+      ))}
+
+      <h2 className={css.sectionTitle}>{t('page.suites.knownSkills')} ({suite.skills.length})</h2>
+      {suite.skills.map(skill => (
+        <div key={skill.name} className={css.knowRow}>
+          <div className={css.knowMain}>
+            <div className={css.knowName}>{skill.title}</div>
+            <p className={css.knowDesc}>{skill.summary}</p>
+          </div>
+          <span className={clsx(css.knowState, !props.placed(skill.name) && css.knowStateMiss)}>
+            {props.placed(skill.name) ? t('page.suites.inPlace') : t('page.suites.notInPlace')}
+          </span>
+        </div>
+      ))}
+
+      <p className={css.notice}>{t('page.suites.installNote')}</p>
+    </section>
+  )
+}
+
+/**
+ * One catalogued skill row. `body` is the condensed rule set the detail
+ * dialog shows; `origin` names the suite (or the user's own root) the row
+ * comes from; `modelInvocable` drives the invocable/manual badge.
  */
 interface CataloguedSkill {
   readonly name: string
   readonly zh: string
-  readonly category: 'doc' | 'data' | 'creative'
+  readonly category: 'doc' | 'data' | 'dev'
   readonly description: string
   readonly body: string
+  readonly origin: string
+  readonly fromSuite: boolean
+  readonly modelInvocable: boolean
 }
 
 /**
- * The built-in skill catalogue — the five shipped skills, presented locally
- * until the host `skill.list` channel replaces it (README Known
- * Limitations). Categories are a UI-local grouping, not a host `source`.
+ * The built-in skill catalogue — the five shipped skills with their local
+ * Chinese titles, categories, and condensed bodies. Presentation metadata:
+ * the host carries only names.
  */
 const BUILTIN_SKILLS: readonly CataloguedSkill[] = [
   {
@@ -295,6 +584,9 @@ const BUILTIN_SKILLS: readonly CataloguedSkill[] = [
     category: 'data',
     description: '按数据特征选图型（趋势/对比/构成/分布/关系），产出 ECharts 配置或独立 HTML 图表页，附关键数字复述与作图规则。',
     body: '何时选什么图：趋势→折线（≤5序列）；类别对比→柱状（>12类改横条）；构成→饼/环（>6扇区合并“其他”）；分布→直方；关系→散点（>2000点抽样）。\n\n产出形态二选一：独立 HTML 单文件（echarts CDN，深浅色跟随系统）或纯 option 配置 JSON。\n\n规则：结论数字先行；坐标轴从 0 起；空/单点/全零数据说明原因不作图；中文标签超宽旋转 30° 不截断。',
+    origin: '办公六件套',
+    fromSuite: true,
+    modelInvocable: true,
   },
   {
     name: 'weekly-report',
@@ -302,6 +594,9 @@ const BUILTIN_SKILLS: readonly CataloguedSkill[] = [
     category: 'doc',
     description: '从口述/会话记录提取「完成/进行中/下周计划/风险」四段，书面语润色不虚构，附纯文本粘贴版。',
     body: '固定四段：本周完成（动词开头 ≤6 条带量化）、进行中（进度%+预计完成）、下周计划（3-5 条，未完成置顶）、风险与求助（无则写“无”）。\n\n素材优先级：口述→会话记录（引用具体数字）→都没有则追问，不虚构。\n\n语体：用“完成/推进/上线/修复”；数字带单位；每条 ≤40 字。产出末尾附纯文本块供粘贴进 OA/IM。',
+    origin: '办公六件套',
+    fromSuite: true,
+    modelInvocable: true,
   },
   {
     name: 'data-analysis',
@@ -309,6 +604,9 @@ const BUILTIN_SKILLS: readonly CataloguedSkill[] = [
     category: 'data',
     description: '数据体检→描述统计→分组对比与加法拆解→结论先行报告，相关不称因果，小样本必标注。',
     body: '流程固定：① 数据体检（缺失/重复先报告不静默处理）② 描述统计（只报相关列）③ 按维度对比，变化类做量×价拆解指出主贡献 ④ 结论三层：关键发现 ≤3 条→支撑数字→建议（标“供参考”）。\n\n规则：结论先行不倒叙；相关≠因果；样本 <30 标注；缺失 >40% 的列不参与；超 20 个数字的统计必须写代码执行，不手算。',
+    origin: '办公六件套',
+    fromSuite: true,
+    modelInvocable: true,
   },
   {
     name: 'tech-proposal',
@@ -316,6 +614,9 @@ const BUILTIN_SKILLS: readonly CataloguedSkill[] = [
     category: 'doc',
     description: '「背景目标-选型-架构-实施-风险」五段结构，含选型对比表与里程碑验收标准，产出 Word 文件并在对话中给出正文。',
     body: '交付两件：① Word 文件——先用 write 写成 HTML（选型对比用真 <table>），再 convert_document 转 docx，报 lossy 时说明损失；② 对话里的 Markdown 正文（架构可附 Mermaid）。\n\n五段缺一不可：① 背景与目标（痛点带数字、目标可验收、明确“不做什么”）② 选型（≥2 候选逐项对比：成熟度/生态/熟悉度/迁移成本/许可证，表格+一句话结论）③ 架构（模块/数据流/关键接口，每个决策附“为什么不用显然的替代”；Word 里用文字描述）④ 实施（里程碑含交付物/验收标准/依赖，工期乐观正常两档）⑤ 风险（概率×影响+对策+兜底，无兜底标“需上报”）。\n\n语体：数字带单位与前提；无法核实的写“待压测确认”。成稿后逐条过自检清单。',
+    origin: '办公六件套',
+    fromSuite: true,
+    modelInvocable: true,
   },
   {
     name: 'format-convert',
@@ -323,65 +624,166 @@ const BUILTIN_SKILLS: readonly CataloguedSkill[] = [
     category: 'doc',
     description: '在 13 种文档/表格/演示格式之间转换文件，族内互转与导出 PDF 完整，跨族直接拒绝，转后如实报告版面是否保留。',
     body: '调用 convert_document：path（源文件）、to（目标格式）、output_path（可选，默认同目录换扩展名）、overwrite（可选，默认 false）。\n\n能转什么：文档族（doc/docx/odt/rtf/txt/html）、表格族（xls/xlsx/ods）、演示族（ppt/pptx/odp）各族内部任意互转；三族任意格式都能导出 pdf；pdf 作为源只取得回文字；跨族（如 xlsx→pptx）不存在，工具直接拒绝，不绕路硬凑。\n\n保真度必须转述：faithful 直接说“已转换”；lossy 必须明说损失了什么（版面/样式/结构没保留）。绝不把 lossy 说成 faithful，也绝不宣称被拒绝的转换。\n\n规则：不自行改输出目录；目标已存在时先问覆盖还是换名，不默认 overwrite；多文件逐个转逐个报告；失败时原样转述原因，不猜是否缺程序。',
+    origin: '办公六件套',
+    fromSuite: true,
+    modelInvocable: true,
   },
 ]
+
+/** Metadata of the demo own row, shared with the extras table below. */
+const DEMO_OWN_META: { zh: string; category: 'doc' | 'data' | 'dev' } = { zh: '内部规范整理', category: 'doc' }
+
+/**
+ * Metadata for catalogued skills beyond the shipped five: suite skills the
+ * host catalogue carries (official-document), the demo-suite skills, and the
+ * demo own skill. One lookup serves every row source; the host carries only
+ * names, so titles and categories stay UI-local.
+ */
+const EXTRA_SKILL_META: Readonly<Record<string, { zh: string; category: 'doc' | 'data' | 'dev' }>> = {
+  'official-document': { zh: '公文格式', category: 'doc' },
+  'gov-notice': { zh: '通知通告', category: 'doc' },
+  'gov-request': { zh: '请示报告', category: 'doc' },
+  'gov-minutes': { zh: '会议纪要', category: 'doc' },
+  'code-review': { zh: '代码评审', category: 'dev' },
+  'api-doc': { zh: '接口文档', category: 'dev' },
+  'release-notes': { zh: '发布说明', category: 'dev' },
+  'incident-review': { zh: '故障复盘', category: 'dev' },
+  'team-style-guide': DEMO_OWN_META,
+}
+
+/** The presentation-only own-skill row, shown only while no session lists
+ *  skills — the same stand-in rule the suite catalogue follows. */
+const DEMO_OWN_SKILL = {
+  name: 'team-style-guide',
+  description: '按团队既有规范整理文档结构与用语，仅手动调用，不开放给模型自动触发。',
+}
 
 /** Catalogue category keys, in filter order. */
 const SKILL_CATEGORIES = [
   { key: 'all', label: 'page.skills.catAll' },
   { key: 'doc', label: 'page.skills.catDoc' },
   { key: 'data', label: 'page.skills.catData' },
-  { key: 'creative', label: 'page.skills.catCreative' },
+  { key: 'dev', label: 'page.skills.catDev' },
 ] as const
 
 type SkillCategoryFilter = (typeof SKILL_CATEGORIES)[number]['key']
 
+/** Scope tab of the skill square: everything, suite-derived rows, own rows. */
+type SkillScope = 'square' | 'suite' | 'own'
+
+/** Sort of the square: catalogue order vs by Chinese title. */
+type SkillSort = 'frequent' | 'name'
+
 /**
- * The 技能 page: the skills with their `/name` calling convention. With a
- * current session the host's session-addressed `skill.list` is the catalogue
- * (the categories then filter the host rows by name-prefix lookup into the
- * local table); without one — or while it loads — the shipped catalogue
- * stands in, clearly a local view rather than an implied load. The category
- * chips are a UI-local grouping, not a host `source`.
+ * The 技能 square. The suite-derived rows come from the same merged suite
+ * catalogue the suites page shows; the own rows are the host's session skill
+ * listing minus the suite skills — with no session (or an empty one), the
+ * presentation-only demo own row stands in rather than implying an empty
+ * catalogue. The category chips are a UI-local grouping, not a host source.
  */
 function SkillsPage(props: TianshuPagesComponentProps) {
-  const { t, sendSkillToComposer, listSkills } = props
+  const { t, sendSkillToComposer, listSkills, listSuites, actions } = props
+  const [scope, setScope] = useState<SkillScope>('square')
+  const [sort, setSort] = useState<SkillSort>('frequent')
   const [category, setCategory] = useState<SkillCategoryFilter>('all')
   const [query, setQuery] = useState('')
   const [detail, setDetail] = useState<CataloguedSkill | undefined>(undefined)
   const [hostRows, setHostRows] = useState<readonly SkillEntry[] | undefined>(undefined)
+  const [suites, setSuites] = useState<readonly SuiteEntry[] | undefined>(undefined)
 
   // Session-addressed listing: only a current session can be asked. A
-  // refusal or absence keeps the local catalogue — the page never implies a
+  // refusal or absence keeps the local stand-in — the page never implies a
   // load it cannot serve.
   useEffect(() => {
     let cancelled = false
     listSkills()
       .then((rows) => { if (!cancelled) setHostRows(rows) })
-      .catch(() => { /* the local catalogue stands in */ })
+      .catch(() => { /* the local stand-in rules the rows */ })
     return () => { cancelled = true }
     // The injected face is stable for the registration's lifetime.
   }, [])
 
-  const rows: readonly CataloguedSkill[] = hostRows === undefined || hostRows.length === 0
-    ? BUILTIN_SKILLS
-    : hostRows.map((entry) => {
-      // The host carries no Chinese title; the local table supplies it when
-      // the name matches, else the raw name stands alone.
-      const local = BUILTIN_SKILLS.find(skill => skill.name === entry.name)
+  // The suite-derived rows ride the catalogue the suites page shows; a
+  // rejection (no suite service mounted) leaves the demo suites alone.
+  useEffect(() => {
+    let cancelled = false
+    listSuites()
+      .then((rows) => { if (!cancelled) setSuites(rows) })
+      .catch(() => { /* the demo suites stand in */ })
+    return () => { cancelled = true }
+    // The injected face is stable for the registration's lifetime.
+  }, [])
+
+  /** One row's local metadata lookup: the shipped table first, extras second. */
+  const metaOf = (name: string): { zh: string; category: 'doc' | 'data' | 'dev'; body?: string } => {
+    const builtin = BUILTIN_SKILLS.find(skill => skill.name === name)
+    if (builtin !== undefined) return builtin
+    return EXTRA_SKILL_META[name] ?? { zh: name, category: 'doc' }
+  }
+
+  const suiteRows: readonly CataloguedSkill[] = [...(suites ?? []), ...DEMO_SUITES].flatMap(suite =>
+    suite.skills.map((skill) => {
+      const meta = metaOf(skill.name)
+      return {
+        name: skill.name,
+        zh: skill.title,
+        category: meta.category,
+        description: skill.summary,
+        body: meta.body ?? skill.summary,
+        origin: suite.title,
+        fromSuite: true,
+        modelInvocable: true,
+      }
+    }))
+
+  const suiteNames = new Set(suiteRows.map(row => row.name))
+  const ownRows: readonly CataloguedSkill[] = (hostRows ?? [])
+    .filter(entry => !suiteNames.has(entry.name))
+    .map((entry) => {
+      const meta = metaOf(entry.name)
       return {
         name: entry.name,
-        zh: local?.zh ?? entry.name,
-        category: local?.category ?? 'creative',
+        zh: meta.zh,
+        category: meta.category,
         description: entry.description,
-        body: local?.body ?? entry.description,
+        body: meta.body ?? entry.description,
+        origin: t('page.skills.ownSource'),
+        fromSuite: false,
+        modelInvocable: entry.modelInvocable !== false,
       }
     })
+  const rows: readonly CataloguedSkill[] = scope === 'suite' ? suiteRows
+    : scope === 'own' ? ownRows
+      : [...suiteRows, ...ownRows]
+  // With no session listing (or an empty one), the demo own row keeps the
+  // own scope from reading as a bare zero.
+  const standingOwnRow: readonly CataloguedSkill[] = (hostRows === undefined || hostRows.length === 0)
+    ? [{
+      name: DEMO_OWN_SKILL.name,
+      zh: DEMO_OWN_META.zh,
+      category: DEMO_OWN_META.category,
+      description: DEMO_OWN_SKILL.description,
+      body: DEMO_OWN_SKILL.description,
+      origin: t('page.skills.ownSource'),
+      fromSuite: false,
+      modelInvocable: false,
+    }]
+    : []
+  // The demo own row stands in for the own scope on the square and the own
+  // tab; the suite tab stays purely suite-derived.
+  const rowsWithOwn = scope === 'suite' ? rows : [...rows, ...standingOwnRow]
 
-  const visible = rows.filter(skill =>
-    (category === 'all' || skill.category === category)
+  const ordered = sort === 'frequent'
+    ? rowsWithOwn
+    : [...rowsWithOwn].sort((a, b) => a.zh.localeCompare(b.zh, 'zh'))
+  const visible = ordered.filter(row =>
+    (category === 'all' || row.category === category)
     && (query.trim() === ''
-      || `${skill.zh}${skill.name}${skill.description}`.toLowerCase().includes(query.trim().toLowerCase())))
+      || `${row.zh}${row.name}${row.description}`.toLowerCase().includes(query.trim().toLowerCase())))
+
+  /** Count one category chip over the rows the current scope serves. */
+  const countOf = (key: SkillCategoryFilter): number =>
+    key === 'all' ? rowsWithOwn.length : rowsWithOwn.filter(row => row.category === key).length
 
   /** Prefill the current session's composer; keep the page open on failure. */
   const send = (name: string): void => {
@@ -390,7 +792,34 @@ function SkillsPage(props: TianshuPagesComponentProps) {
 
   return (
     <section>
-      <div className={css.filters}>
+      <div className={css.skillHero}>
+        <span className={css.skillHeroIcon}><SuiteGlyph size={22} /></span>
+        <div className={css.skillHeroMain}>
+          <div className={css.skillHeroTitle}>{t('page.skills.heroTitle')}</div>
+          <p className={css.skillHeroDesc}>{t('page.skills.heroDesc')}</p>
+        </div>
+        <button type="button" className={css.skillHeroBtn} onClick={() => { actions.select('suites') }}>
+          {t('page.skills.gotoSuites')} →
+        </button>
+      </div>
+
+      <div className={css.tabsRow}>
+        <button type="button" className={clsx(css.tab, scope === 'square' && css.tabOn)} onClick={() => { setScope('square') }}>
+          {t('page.skills.square')}<span className={css.tabCount}>{suiteRows.length + ownRows.length + standingOwnRow.length}</span>
+        </button>
+        <button type="button" className={clsx(css.tab, scope === 'suite' && css.tabOn)} onClick={() => { setScope('suite') }}>
+          {t('page.skills.suiteOwned')}<span className={css.tabCount}>{suiteRows.length}</span>
+        </button>
+        <button type="button" className={clsx(css.tab, scope === 'own' && css.tabOn)} onClick={() => { setScope('own') }}>
+          {t('page.skills.own')}<span className={css.tabCount}>{ownRows.length + standingOwnRow.length}</span>
+        </button>
+        <span className={css.seg}>
+          <button type="button" className={clsx(css.segBtn, sort === 'frequent' && css.segBtnOn)} onClick={() => { setSort('frequent') }}>{t('page.skills.frequent')}</button>
+          <button type="button" className={clsx(css.segBtn, sort === 'name' && css.segBtnOn)} onClick={() => { setSort('name') }}>{t('page.skills.byName')}</button>
+        </span>
+      </div>
+
+      <div className={css.chipsRow}>
         {SKILL_CATEGORIES.map(({ key, label }) => (
           <button
             key={key} type="button"
@@ -398,10 +827,7 @@ function SkillsPage(props: TianshuPagesComponentProps) {
             onClick={() => { setCategory(key) }}
           >
             {t(label)}
-            <span className={css.chipCount}>{
-              key === 'all' ? rows.length
-                : rows.filter(skill => skill.category === key).length
-            }</span>
+            <span className={css.chipCount}>{countOf(key)}</span>
           </button>
         ))}
         <input
@@ -413,35 +839,39 @@ function SkillsPage(props: TianshuPagesComponentProps) {
           onChange={(event) => { setQuery(event.target.value) }}
         />
       </div>
-      <h2 className={css.sectionTitle}>{t('page.skills.catalogue')}</h2>
+
       {visible.length === 0
         ? <p className={css.empty}>{t('page.skills.emptySearch')}</p>
         : (
-          <ul className={css.list}>
-            {visible.map(skill => (
-              <li key={skill.name} className={css.row}>
-                <div className={css.rowMain}>
-                  <div className={css.skillTitle}>
-                    {skill.zh} <span className={css.skillCmd}>/{skill.name}</span>
+          <div className={css.skillGrid}>
+            {visible.map(row => (
+              <article key={row.name} className={css.skillCard}>
+                <div className={css.skillCardTop}>
+                  <span className={css.glyphBox}><SkillGlyph /></span>
+                  <div className={css.skillCardTitleBox}>
+                    <div className={css.skillCardName}>{row.zh}</div>
+                    <div className={css.skillCardCmd}>/{row.name}</div>
                   </div>
-                  <div className={css.skillDesc}>{skill.description}</div>
+                  <span className={clsx(css.skillBadge, !row.modelInvocable && css.skillBadgeManual)}>
+                    {row.modelInvocable ? t('page.skills.modelInvocable') : t('page.skills.manualOnly')}
+                  </span>
                 </div>
-                <span className={css.rowTags}>
-                  <span className={clsx(css.stateTag, css.stateTagModel)}>{t('page.skills.modelInvocable')}</span>
-                  <button type="button" className={css.rowActionBtn} onClick={() => { setDetail(skill) }}>
-                    {t('page.skills.view')}
-                  </button>
-                  <button type="button" className={clsx(css.rowActionBtn, css.rowActionPrimary)} onClick={() => { send(skill.name) }}>
-                    {t('page.skills.sendToComposer')}
-                  </button>
-                </span>
-              </li>
+                <p className={css.skillCardDesc}>{row.description}</p>
+                <div className={css.skillCardFoot}>
+                  <span className={css.skillFrom}>{t('page.skills.from')} <b>{row.origin}</b></span>
+                  <span className={css.skillBtns}>
+                    <button type="button" className={css.btnView} onClick={() => { setDetail(row) }}>
+                      {t('page.skills.view')}
+                    </button>
+                    <button type="button" className={css.btnSend} onClick={() => { send(row.name) }}>
+                      {t('page.skills.sendToComposer')}
+                    </button>
+                  </span>
+                </div>
+              </article>
             ))}
-          </ul>
+          </div>
         )}
-      <p className={css.skillLine}>
-        {t('page.skills.usageNote')}
-      </p>
 
       <Modal
         open={detail !== undefined}

@@ -135,46 +135,6 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.suiteSkills {
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.suiteSkill {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-3);
-}
-
-.suiteSkillName {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--dsw-alias-label-primary);
-}
-
-.suiteSkillCmd {
-  font-family: Consolas, "Courier New", monospace;
-  font-size: 12px;
-  font-weight: 400;
-  color: #2563EB;
-}
-
-.suiteSkillDesc {
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--dsw-alias-label-secondary);
-}
-
 .list {
   margin: 0;
   padding: 0;
@@ -580,31 +540,6 @@
   border-color: #2563EB;
 }
 
-.skillTitle {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* The composer's calling convention, rendered the way the composer reads it. */
-.skillCmd {
-  font-family: Consolas, "Courier New", monospace;
-  color: #2563EB;
-}
-
-.skillDesc {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--dsw-alias-label-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stateTagModel {
-  border-color: rgba(37, 99, 235, 0.4);
-  color: #2563EB;
-}
-
 .rowActionPrimary {
   border-color: #2563EB;
   background: #2563EB;
@@ -615,9 +550,709 @@
   background: #1d4fd7;
 }
 
-.skillLine {
+/* ---- 专家套件 square（定稿 2026-09-28） ---- */
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 22px 26px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #E8F0FB, #F3F7FD);
+}
+
+.heroMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.heroDots {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.heroDot {
+  width: 6px;
+  height: 5px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: rgba(37, 99, 235, 0.25);
+  cursor: pointer;
+}
+
+.heroDotOn {
+  width: 16px;
+  background: #2563EB;
+}
+
+.heroTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dsw-alias-label-primary);
+}
+
+.heroDesc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 21px;
+  color: var(--dsw-alias-label-secondary);
+  max-width: 480px;
+}
+
+.heroBtn {
   margin-top: 14px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.heroBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.heroPills {
+  flex: none;
+  width: 300px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.heroPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-base);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.heroPill:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.heroPill svg {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.hintLine {
+  margin: 10px 0 0;
   font-size: 12px;
   line-height: 20px;
   color: var(--dsw-alias-label-secondary);
+}
+
+.tabsRow {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin: 22px 0 16px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.tabOn {
+  color: var(--dsw-alias-label-primary);
+}
+
+.tabCount {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.seg {
+  margin-left: auto;
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 16px;
+}
+
+.segBtn {
+  height: 26px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 13px;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.segBtnOn {
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.suiteGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+.suiteCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+  cursor: pointer;
+}
+
+.suiteCard:hover {
+  border-color: var(--dsw-alias-border-l3);
+}
+
+.suiteCheck {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: #16A34A;
+}
+
+.suitePlus {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.suitePlus:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.suitePlus:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Shared icon plate for the page header, suite cards, and detail heads. */
+.glyphBox {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+
+.suiteName {
+  margin-top: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--dsw-alias-label-primary);
+}
+
+.suiteMeta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.suiteDesc {
+  flex: 1;
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 21px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.suiteFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.suiteState {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* A shipped body changed under an install: the same orange as 未就位. */
+.suiteOutdated {
+  color: #D97706;
+}
+
+/* Brand-style page header: glyph plate + letterspaced subtitle + hairline. */
+.headRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.headTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
+  letter-spacing: 1px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.headSub {
+  margin-top: 2px;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.headLine {
+  flex: 1;
+  height: 1px;
+  margin: 0 8px;
+  background: var(--dsw-alias-border-l2);
+}
+
+.headCaption {
+  flex: none;
+  max-width: 460px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* ---- suite detail ---- */
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.detailHead {
+  padding: 22px 24px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.detailHeadTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.detailTitleBox {
+  flex: 1;
+  min-width: 0;
+}
+
+.detailTitleLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detailTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--dsw-alias-label-primary);
+}
+
+.detailTag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 11px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.detailOrigin {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.detailToggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.toggleKnob {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  transition: background 150ms;
+}
+
+.toggleKnob::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 150ms;
+}
+
+.detailToggleOn .toggleKnob {
+  background: #2563EB;
+}
+
+.detailToggleOn .toggleKnob::after {
+  transform: translateX(20px);
+}
+
+.detailDesc {
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.detailRecog {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.cmdRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 13px 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cmdRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.cmdPill {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.08);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  color: #2563EB;
+}
+
+.cmdTitle {
+  font-size: 14px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.cmdArrow {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.knowRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.knowMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.knowName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.knowDesc {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.knowState {
+  flex: none;
+  padding-top: 2px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.knowStateMiss {
+  color: #D97706;
+}
+
+/* ---- 技能 square ---- */
+
+.skillHero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 26px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #E8F0FB, #F3F7FD);
+}
+
+.skillHeroIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-base);
+  color: #2563EB;
+}
+
+.skillHeroMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.skillHeroTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dsw-alias-label-primary);
+}
+
+.skillHeroDesc {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.skillHeroBtn {
+  flex: none;
+  height: 38px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 19px;
+  background: #2563EB;
+  font-size: 13px;
+  font-family: inherit;
+  color: #fff;
+  cursor: pointer;
+}
+
+.skillHeroBtn:hover {
+  background: #1d4fd7;
+}
+
+.chipsRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.skillGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+.skillCard {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.skillCardTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.skillCardTitleBox {
+  flex: 1;
+  min-width: 0;
+}
+
+.skillCardName {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--dsw-alias-label-primary);
+}
+
+.skillCardCmd {
+  margin-top: 3px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.skillBadge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid rgba(37, 99, 235, 0.45);
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.06);
+  font-size: 12px;
+  color: #2563EB;
+}
+
+.skillBadgeManual {
+  border-color: var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.skillCardDesc {
+  flex: 1;
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 21px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.skillCardFoot {
+  display: flex;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.skillFrom {
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.skillFrom b {
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.skillBtns {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.btnView {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 15px;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnView:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.btnSend {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid #2563EB;
+  border-radius: 15px;
+  background: #2563EB;
+  font-size: 12px;
+  font-family: inherit;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnSend:hover {
+  background: #1d4fd7;
 }

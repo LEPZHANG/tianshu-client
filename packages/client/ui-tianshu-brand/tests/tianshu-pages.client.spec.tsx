@@ -358,35 +358,29 @@ describe('TianshuPages sessions: folder axis', () => {
 })
 
 describe('TianshuPages suites', () => {
-  it('lists the host catalogue with its skill counts and install state', async () => {
+  it('lists the host catalogue plus the demo rows with counts and install state', async () => {
     mountPages({
       active: 'suites',
       suites: [
-        { id: 'office-essentials', title: '办公五件套', skillNames: ['a', 'b', 'c', 'd', 'e'] },
-        { id: 'gov', title: '政务公文', skillNames: ['x', 'y'], installed: true },
+        { id: 'office-essentials', title: '办公五件套', skillNames: ['a', 'b', 'c', 'd', 'e'], installed: true },
       ],
     })
-    expect(await screen.findByText('办公五件套')).toBeTruthy()
-    expect(screen.getByText('政务公文')).toBeTruthy()
-    expect(screen.getByText('Includes 5')).toBeTruthy()
-    expect(screen.getByText('Includes 2')).toBeTruthy()
-    // Each suite lists its skills with a per-skill command and summary.
-    expect(screen.getByText('/a')).toBeTruthy()
-    expect(screen.getByText('a 说明')).toBeTruthy()
-    // The installed suite shows its badge and uninstall; the other an install button.
-    expect(screen.getByText('Installed')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Install' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Uninstall' })).toBeTruthy()
+    expect(await screen.findAllByText('办公五件套')).toBeTruthy()
+    // The demo suites ride along after the host rows.
+    expect(screen.getAllByText('公文写作组')[0]).toBeTruthy()
+    expect(screen.getAllByText('工程研发台')[0]).toBeTruthy()
+    // The installed suite shows its in-place count; the demos stay uninstalled.
+    expect(screen.getByText('In place 5/5')).toBeTruthy()
+    expect(screen.getAllByText('Not installed')).toHaveLength(2)
   })
 
-  it('installs through the injected action and adopts the echoed catalogue', async () => {
+  it('installs through the card button and adopts the echoed catalogue', async () => {
     const { actions } = mountPages({ active: 'suites' })
-    await screen.findByText('办公五件套')
-    fireEvent.click(screen.getByRole('button', { name: 'Install' }))
-    await screen.findByText('Installed')
+    await screen.findAllByText('办公五件套')
+    // The uninstalled host card carries the install button; the demo cards follow.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Install' })[0]!)
+    await screen.findByText('In place 5/5')
     expect(actions.installSuite).toHaveBeenCalledWith('office-essentials')
-    // The echoed catalogue replaced the row's install button.
-    expect(screen.queryByRole('button', { name: 'Install' })).toBeNull()
   })
 
   it('offers a reinstall for an installed suite whose shipped body changed, and installs through it', async () => {
@@ -396,44 +390,104 @@ describe('TianshuPages suites', () => {
         id: 'office-essentials', title: '办公五件套', skillNames: ['a'], installed: true, current: false,
       }],
     })
-    await screen.findByText('办公五件套')
+    await screen.findAllByText('办公五件套')
+    // The card footer flags the outdated install; the detail header offers the reinstall.
     expect(screen.getByText('Update available')).toBeTruthy()
-    expect(screen.queryByText('Installed')).toBeNull()
+    fireEvent.click(screen.getAllByText('办公五件套').at(-1)!)
     fireEvent.click(screen.getByRole('button', { name: 'Reinstall' }))
-    await screen.findByText('Installed')
     expect(actions.installSuite).toHaveBeenCalledWith('office-essentials')
   })
 
-  it('uninstalls through the injected action and returns to installable', async () => {
+  it('uninstalls from the detail view and returns to installable', async () => {
     const { actions } = mountPages({
       active: 'suites',
       suites: [{ id: 'office-essentials', title: '办公五件套', skillNames: ['a'], installed: true }],
     })
-    await screen.findByText('办公五件套')
+    await screen.findAllByText('办公五件套')
+    fireEvent.click(screen.getAllByText('办公五件套').at(-1)!)
     fireEvent.click(screen.getByRole('button', { name: 'Uninstall' }))
     await screen.findByRole('button', { name: 'Install' })
     expect(actions.uninstallSuite).toHaveBeenCalledWith('office-essentials')
   })
+
+  it('answers a demo-suite install with a notice instead of an RPC', async () => {
+    const { actions } = mountPages({ active: 'suites' })
+    await screen.findAllByText('办公五件套')
+    // Card order: host rows first, then the demo rows.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Install' })[1]!)
+    expect(screen.getByRole('status').textContent).toContain('Demo suites are for preview only')
+    expect(actions.installSuite).not.toHaveBeenCalled()
+  })
+
+  it('opens a suite detail with quick commands, knowledge rows, and the back link', async () => {
+    mountPages({
+      active: 'suites',
+      suites: [{ id: 'office-essentials', title: '办公五件套', skillNames: ['a', 'b'] }],
+      hostSkills: [{ name: 'a', description: 'host a' }],
+    })
+    await screen.findAllByText('办公五件套')
+    fireEvent.click(screen.getAllByText('办公五件套').at(-1)!)
+    // The header card counts the one recognized skill of two.
+    expect(screen.getByText(/Recognized on the skills page 1\/2/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /\/a/ })).toBeTruthy()
+    // Knowledge rows carry per-skill placement; the unrecognized one flags missing.
+    expect(screen.getByText('Missing')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Back to suite square/ }))
+    expect(screen.getByText('Suite square')).toBeTruthy()
+  })
+
+  it('toggles the enable switch in the detail header', async () => {
+    mountPages({ active: 'suites' })
+    await screen.findAllByText('办公五件套')
+    fireEvent.click(screen.getAllByText('办公五件套').at(-1)!)
+    const toggle = screen.getByRole('button', { name: 'Enabled' })
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('filters the square to the installed suites', async () => {
+    mountPages({
+      active: 'suites',
+      suites: [{ id: 'office-essentials', title: '办公五件套', skillNames: ['a'], installed: true }],
+    })
+    await screen.findAllByText('工程研发台')
+    fireEvent.click(screen.getByRole('button', { name: 'Installed1' }))
+    // Only the card leaves; the hero pill keeps naming the demo suite.
+    expect(screen.getAllByText('工程研发台')).toHaveLength(1)
+    expect(screen.getAllByText('办公五件套').length).toBeGreaterThan(1)
+  })
+
+  it('states that suite authoring is not open instead of pretending to create', async () => {
+    mountPages({ active: 'suites' })
+    await screen.findAllByText('办公五件套')
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Tianshu to build a suite for me' }))
+    expect(screen.getByRole('status').textContent).toContain('not available yet')
+  })
 })
 
 describe('TianshuPages skills', () => {
-  it('lists the five catalogued skills with counts, categories, and calling names', () => {
+  it('lists the suite-derived rows plus the demo own row with counts and badges', async () => {
     mountPages({ active: 'skills' })
+    // The host suite rows arrive async; wait for the load before counting.
+    await screen.findAllByText('办公五件套')
     expect(screen.getByRole('heading', { level: 1, name: 'Skills' })).toBeTruthy()
-    // Five rows, each carrying its /name calling convention.
-    const rows = screen.getAllByRole('listitem')
-    expect(rows).toHaveLength(5)
-    expect(screen.getByText('/data-visualization')).toBeTruthy()
-    expect(screen.getByText('/tech-proposal')).toBeTruthy()
-    expect(screen.getByText('/format-convert')).toBeTruthy()
-    // Category chips count the catalogue: 3 documents, 2 data, 0 creative.
-    expect(screen.getByRole('button', { name: /All5/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Documents3/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Data2/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Creative0/ })).toBeTruthy()
+    // The demo suite skills and the demo own row are present by default.
+    expect(screen.getByText('/gov-notice')).toBeTruthy()
+    expect(screen.getByText('/team-style-guide')).toBeTruthy()
+    // The demo own row is manual-only; suite rows are model-invocable.
+    expect(screen.getByText('Manual only')).toBeTruthy()
+    expect(screen.getAllByText('Model-invocable').length).toBeGreaterThan(0)
+    // Tabs count the three scopes: 5 host + 7 demo suite skills + 1 own row.
+    expect(screen.getByRole('button', { name: 'Skill square13' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'From suites12' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Own1' })).toBeTruthy()
+    // Category chips count over the square: the generic host skills are documents.
+    expect(screen.getByRole('button', { name: /Documents9/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Engineering4/ })).toBeTruthy()
   })
 
-  it('serves the host catalogue when a session lists skills, merging known titles', async () => {
+  it('serves the host rows as own skills, titled from the local table', async () => {
     mountPages({
       active: 'skills',
       hostSkills: [
@@ -441,45 +495,58 @@ describe('TianshuPages skills', () => {
         { name: 'custom-thing', description: 'a skill only the host knows' },
       ],
     })
-    // The host rows arrive async; both land once they do.
     expect(await screen.findByText('/custom-thing')).toBeTruthy()
-    expect(screen.getByText('host row for the known skill')).toBeTruthy()
-    // A known name keeps its Chinese title; an unknown one shows the raw name.
+    // The own scope holds exactly the two host rows (neither is a suite skill).
+    fireEvent.click(screen.getByRole('button', { name: 'Own2' }))
     expect(screen.getByText('数据可视化')).toBeTruthy()
-    expect(screen.getByText('custom-thing')).toBeTruthy()
+    expect(screen.getByText('host row for the known skill')).toBeTruthy()
+    expect(screen.getByText('a skill only the host knows')).toBeTruthy()
   })
 
-  it('filters by category and by search', () => {
+  it('filters by category and by search', async () => {
     mountPages({ active: 'skills' })
-    fireEvent.click(screen.getByRole('button', { name: /Documents/ }))
-    const docRows = screen.getAllByRole('listitem')
-    expect(docRows).toHaveLength(3)
-    expect(docRows.every(row => ['/weekly-report', '/tech-proposal', '/format-convert']
-      .some(name => row.textContent?.includes(name)))).toBe(true)
+    await screen.findAllByText('办公五件套')
+    fireEvent.click(screen.getByRole('button', { name: /Engineering/ }))
+    const devCards = screen.getAllByText(/\/(code-review|api-doc|release-notes|incident-review)/)
+    expect(devCards).toHaveLength(4)
 
-    fireEvent.click(screen.getByRole('button', { name: /All/ }))
+    fireEvent.click(screen.getByRole('button', { name: /All13/ }))
     const search = screen.getByLabelText('Search skills or descriptions…')
-    fireEvent.change(search, { target: { value: '周报' } })
-    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    fireEvent.change(search, { target: { value: '通告' } })
+    expect(screen.getAllByRole('article')).toHaveLength(1)
     fireEvent.change(search, { target: { value: '不存在的东西' } })
     expect(screen.getByText('No matching skills')).toBeTruthy()
   })
 
-  it('shows a skill body in the detail dialog and sends to the composer from it', () => {
-    const { actions } = mountPages({ active: 'skills' })
-    fireEvent.click(screen.getAllByRole('button', { name: 'View' })[0]!)
+  it('re-sorts the square by name and back', async () => {
+    mountPages({ active: 'skills' })
+    await screen.findAllByText('办公五件套')
+    fireEvent.click(screen.getByRole('button', { name: 'By name' }))
+    expect(screen.getAllByRole('article')).toHaveLength(13)
+    fireEvent.click(screen.getByRole('button', { name: 'Frequent' }))
+    expect(screen.getAllByRole('article')).toHaveLength(13)
+  })
+
+  it('shows a skill body in the detail dialog and sends to the composer from it', async () => {
+    const { actions } = mountPages({
+      active: 'skills',
+      hostSkills: [{ name: 'data-visualization', description: 'host row' }],
+    })
+    await screen.findByText('/data-visualization')
+    // The data-visualization card is the last one (own rows render after suites).
+    fireEvent.click(screen.getAllByRole('button', { name: 'View' }).at(-1)!)
     expect(screen.getByRole('dialog')).toBeTruthy()
-    // The first row is data-visualization; its condensed rule set renders.
     expect(screen.getByText(/选什么图/)).toBeTruthy()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Send to composer' }).at(-1)!)
     expect(actions.sendSkillToComposer).toHaveBeenCalled()
   })
 
-  it('prefills the composer and closes the page only when the send applied', () => {
+  it('prefills the composer and closes the page only when the send applied', async () => {
     const applied = mountPages({ active: 'skills' })
+    await screen.findAllByText('办公五件套')
     fireEvent.click(screen.getAllByRole('button', { name: 'Send to composer' })[0]!)
-    expect(applied.actions.sendSkillToComposer).toHaveBeenCalledWith('data-visualization')
+    expect(applied.actions.sendSkillToComposer).toHaveBeenCalledWith('a')
     // The prefill applied, so the page retired to show the conversation.
     expect(applied.state().active).toBeUndefined()
 
@@ -490,6 +557,12 @@ describe('TianshuPages skills', () => {
     fireEvent.click(sendButton!)
     expect(refused.actions.sendSkillToComposer).toHaveBeenCalled()
     expect(refused.state().active).toBe('skills')
+  })
+
+  it('routes the hero button to the suites page', () => {
+    const { state } = mountPages({ active: 'skills' })
+    fireEvent.click(screen.getByRole('button', { name: /Go to Expert Suites/ }))
+    expect(state().active).toBe('suites')
   })
 })
 
@@ -526,8 +599,8 @@ describe('TianshuPages suites: failure paths', () => {
 
   it('surfaces an install failure', async () => {
     mountPages({ active: 'suites', overrides: { installSuite: vi.fn(async () => { throw new Error('disk full') }) } })
-    await screen.findByText('办公五件套')
-    fireEvent.click(screen.getByRole('button', { name: 'Install' }))
+    await screen.findAllByText('办公五件套')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Install' })[0]!)
     expect((await screen.findByRole('alert')).textContent).toContain('disk full')
   })
 
@@ -537,7 +610,9 @@ describe('TianshuPages suites: failure paths', () => {
       suites: [{ id: 'office-essentials', title: '办公五件套', skillNames: ['a'], installed: true }],
       overrides: { uninstallSuite: vi.fn(async () => { throw 'busy' }) },
     })
-    await screen.findByText('办公五件套')
+    await screen.findAllByText('办公五件套')
+    // Uninstall lives in the detail view's header card.
+    fireEvent.click(screen.getAllByText('办公五件套').at(-1)!)
     fireEvent.click(screen.getByRole('button', { name: 'Uninstall' }))
     expect((await screen.findByRole('alert')).textContent).toContain('busy')
   })
@@ -571,8 +646,8 @@ describe('TianshuPages skills: extra paths', () => {
       active: 'skills',
       overrides: { listSkills: vi.fn(async () => { throw new Error('no session') }) },
     })
-    // The rejection is swallowed; the shipped catalogue still stands in.
-    expect(await screen.findByText('/data-visualization')).toBeTruthy()
+    // The rejection is swallowed; the suite-derived rows still stand in.
+    expect(await screen.findByText('/gov-notice')).toBeTruthy()
     expect(actions.listSkills).toHaveBeenCalled()
   })
 
