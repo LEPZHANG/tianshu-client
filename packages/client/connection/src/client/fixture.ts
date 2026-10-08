@@ -44,6 +44,27 @@ import type { ClientConnectionRpc } from '../rpc.ts'
 /** Fixture suite-install state; the host derives it from file presence. */
 const installedSuites = new Set<string>()
 
+/**
+ * The one fixture suite, projected with its install state read live from {@link installedSuites}. The
+ * fixture has no stale bodies, so an installed suite is always current.
+ */
+function fixtureSuites() {
+  return [
+    {
+      id: 'office-essentials',
+      title: '办公六件套',
+      tag: '通用',
+      description: 'fixture 套件样本',
+      skills: [
+        { name: 'fixture-demo', title: 'Fixture 演示', summary: 'fixture 技能样本说明' },
+        { name: 'fixture-user-only', title: 'Fixture 仅用户', summary: 'fixture 仅用户技能样本说明' },
+      ],
+      installed: installedSuites.has('office-essentials'),
+      current: installedSuites.has('office-essentials'),
+    },
+  ]
+}
+
 /** The fake carrier mints like a real one (business code never mints). */
 function rpcRequest<P>(payload: P): RpcRequest<P> {
   return { rpcId: RpcId(randomUuid()), payload }
@@ -2907,56 +2928,14 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     },
 
     skills: {
-      suiteList: (request) => ok(request, {
-        suites: [
-          {
-            id: 'office-essentials',
-            title: '办公五件套',
-            tag: '通用',
-            description: 'fixture 套件样本',
-            skills: [
-              { name: 'fixture-demo', title: 'Fixture 演示', summary: 'fixture 技能样本说明' },
-              { name: 'fixture-user-only', title: 'Fixture 仅用户', summary: 'fixture 仅用户技能样本说明' },
-            ],
-            installed: installedSuites.has('office-essentials'),
-          },
-        ],
-      }),
+      suiteList: request => ok(request, { suites: fixtureSuites() }),
       suiteInstall: (request) => {
         installedSuites.add(request.payload.suiteId)
-        return ok(request, {
-          suites: [
-            {
-              id: 'office-essentials',
-              title: '办公五件套',
-              tag: '通用',
-              description: 'fixture 套件样本',
-              skills: [
-                { name: 'fixture-demo', title: 'Fixture 演示', summary: 'fixture 技能样本说明' },
-                { name: 'fixture-user-only', title: 'Fixture 仅用户', summary: 'fixture 仅用户技能样本说明' },
-              ],
-              installed: installedSuites.has('office-essentials'),
-            },
-          ],
-        })
+        return ok(request, { suites: fixtureSuites() })
       },
       suiteUninstall: (request) => {
         installedSuites.delete(request.payload.suiteId)
-        return ok(request, {
-          suites: [
-            {
-              id: 'office-essentials',
-              title: '办公五件套',
-              tag: '通用',
-              description: 'fixture 套件样本',
-              skills: [
-                { name: 'fixture-demo', title: 'Fixture 演示', summary: 'fixture 技能样本说明' },
-                { name: 'fixture-user-only', title: 'Fixture 仅用户', summary: 'fixture 仅用户技能样本说明' },
-              ],
-              installed: installedSuites.has('office-essentials'),
-            },
-          ],
-        })
+        return ok(request, { suites: fixtureSuites() })
       },
       list: (request) => {
         const missing = requireSession(request)

@@ -545,6 +545,33 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'documentConvert',
+    summary: 'The document conversion service.',
+    description: 'The document conversion service. Registered as `ctx.documentConvert` (one instance per context).\n\nUsage is two explicit phases: resolve applies every default and plans the route, failing loud when the request cannot be served; run executes the resolved plan. Keeping them apart lets a caller learn the output path and the fidelity it is about to accept before anything is written.',
+    methods: [
+      {
+        signature: 'registerProvider(provider: DocumentConvertProvider): () => void',
+        description: 'Register a conversion provider. Throws ConvertError `CONVERT_DUPLICATE_PROVIDER` if its id is already registered. Returns a disposer; disposed with the calling fiber.',
+        parameters: [{ name: 'provider', description: 'the provider; its `id` is the registry key.' }],
+        returns: 'the disposer that unregisters the provider.',
+      },
+      {
+        signature: 'resolve(request: ConvertRequest): ConvertSpec',
+        description: 'Apply every default to a request and plan its route. This is the seam\'s only defaulting step: the source format comes from the source path\'s extension when unstated, the output path is derived beside the source when unstated, and the route is chosen from the currently usable providers.',
+        parameters: [{ name: 'request', description: 'the source path, target format, and any explicit overrides.' }],
+        returns: 'the fully-resolved conversion, including the plan and its fidelity.',
+        throws: ['{@link ConvertError} `CONVERT_FORMAT_UNKNOWN` when the source format is neither stated nor readable from the path, plus any planning failure from `planRoute`.'],
+      },
+      {
+        signature: 'async run(spec: ConvertSpec, signal?: AbortSignal): Promise<ConvertOutcome>',
+        description: 'Execute a resolved conversion. Each step runs through its planned provider; a multi-step plan writes its intermediates into a scratch directory that is removed whether the conversion succeeds or fails, and only the final step writes `spec.outputPath`.\n\nEvery step\'s result is checked against its target format before the next step reads it, so a converter that reported success without producing a usable document fails here rather than handing back a file that opens empty. A rejected file is deleted, including at the destination.',
+        parameters: [{ name: 'spec', description: 'the resolved conversion from {@link resolve}.' }, { name: 'signal', description: 'optional cancellation signal, checked between steps and forwarded to providers.' }],
+        returns: 'what was written: the path, the executed steps, the fidelity, the byte size, and the notes the steps reported about what the document lost.',
+        throws: ['{@link ConvertError} `CONVERT_CANCELLED` when the signal fires, `CONVERT_PROVIDER_UNAVAILABLE` when a planned provider is no longer registered, `CONVERT_OUTPUT_MISSING` when a step reports success without producing its file, or `CONVERT_OUTPUT_UNUSABLE` when it produces one that is not a document of the format it promised.'],
+      },
+    ],
+  },
+  {
     key: 'e2b',
     summary: 'Creates one lazily consumable E2B SDK handle and deletes the sandbox at timeout or disposal.',
     description: 'Creates one lazily consumable E2B SDK handle and deletes the sandbox at timeout or disposal. Creation begins at plugin construction; adapters await getSandbox before their first operation.',
@@ -1528,6 +1555,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'skillSuites',
+    summary: 'The skill-suite catalogue service: reads the shipped table, projects its install state from the filesystem, and installs/uninstalls by writing or removing directories under the user skill root.',
+    description: 'The skill-suite catalogue service: reads the shipped table, projects its install state from the filesystem, and installs/uninstalls by writing or removing directories under the user skill root.',
+    methods: [
+      {
+        signature: 'async list(): Promise<readonly SuiteView[]>',
+        description: 'The shipped catalogue projected against the filesystem.',
+        parameters: [],
+        returns: 'one view per built-in suite, in catalogue order.',
+      },
+      {
+        signature: 'async install(suiteId: string): Promise<void>',
+        description: 'Install one suite: write every bundled SKILL.md, and every file a skill declares, under the user root. Idempotent — an already-present file whose bytes match the bundled copy is left untouched (no rewrite, no timestamp churn).',
+        parameters: [{ name: 'suiteId', description: 'suite to install.' }],
+        throws: ['{UnknownSuiteError} when the id is not in the catalogue.'],
+      },
+      {
+        signature: 'async uninstall(suiteId: string): Promise<void>',
+        description: 'Uninstall one suite: remove its skill directories, but only those whose SKILL.md still matches the bundled body byte-for-byte — an edited skill is the user\'s work and survives the uninstall. Idempotent: missing directories resolve.',
+        parameters: [{ name: 'suiteId', description: 'suite to uninstall.' }],
+        throws: ['{UnknownSuiteError} when the id is not in the catalogue.'],
+      },
+    ],
+  },
+  {
     key: 'spillStore',
     summary: 'Abstract spill storage service.',
     description: 'Abstract spill storage service. Subclass, implement saveText, and load the subclass as a plugin — it registers as `ctx.spillStore` (one implementation per context; loading a second throws, cordis\' standard duplicate-service behavior).\n\nSemantics every implementation must honor:\n\n- saveText persists the FULL `content` verbatim and returns an opaque locator, exact byte length, and model-facing retrieval guidance.\n- Storage is scoped by the request\'s SaveTextSpill.owner session; the backend chooses a private (not world-readable) location and a collision-free name derived from — never equal to — the caller\'s `suggestedName`.\n- `saveText` REJECTS on a real storage failure (permissions, ENOSPC, backend unavailable); the caller decides how to degrade (the spill policy treats a rejection as best-effort and keeps the inline result).',
@@ -2149,6 +2201,54 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'archiveSession(sessionId: SessionId): Promise<void>',
         description: 'Archive one session durably. The session must exist (live or in session persistence); its workspace accounting — or lack of one — is irrelevant. An already archived id resolves without writing.',
         parameters: [{ name: 'sessionId', description: 'The session to archive.' }],
+        returns: 'resolution after durability.',
+      },
+      {
+        signature: 'unarchiveSession(sessionId: SessionId): Promise<void>',
+        description: 'Unarchive one session, the exact inverse of archiveSession. An id that is not archived resolves without writing. Workspace accounting is untouched, so the session reappears in the position it held before archiving.',
+        parameters: [{ name: 'sessionId', description: 'The session to restore to the visible set.' }],
+        returns: 'resolution after durability.',
+      },
+      {
+        signature: 'createCollection(title: string): Promise<Collection>',
+        description: 'Create an empty collection.',
+        parameters: [{ name: 'title', description: 'Display title; must not be blank. Duplicate titles are allowed, since the id is the reference.' }],
+        returns: 'the new collection.',
+      },
+      {
+        signature: 'renameCollection(collectionId: CollectionId, title: string): Promise<void>',
+        description: 'Replace one collection\'s display title.',
+        parameters: [{ name: 'collectionId', description: 'Target collection.' }, { name: 'title', description: 'New title; must not be blank.' }],
+        returns: 'resolution after durability.',
+      },
+      {
+        signature: 'deleteCollection(collectionId: CollectionId): Promise<void>',
+        description: 'Delete one collection. Member sessions are untouched: they simply stop being filed under it, keeping every other membership and their workspace accounting.',
+        parameters: [{ name: 'collectionId', description: 'Target collection.' }],
+        returns: 'resolution after durability.',
+      },
+      {
+        signature: 'addSessionToCollection(collectionId: CollectionId, sessionId: SessionId): Promise<void>',
+        description: 'File one session under a collection, appended at the end of its manual order; activity never reorders. Already a member resolves without writing.',
+        parameters: [{ name: 'collectionId', description: 'Target collection.' }, { name: 'sessionId', description: 'Session to file.' }],
+        returns: 'resolution after durability.',
+      },
+      {
+        signature: 'removeSessionFromCollection(collectionId: CollectionId, sessionId: SessionId): Promise<void>',
+        description: 'Take one session out of a collection. Idempotent, and deliberately no existence check: removing a reference cannot create a dangling one, so an unresolvable id simply was never a member.',
+        parameters: [{ name: 'collectionId', description: 'Target collection.' }, { name: 'sessionId', description: 'Session to unfile.' }],
+        returns: 'resolution after durability.',
+      },
+      {
+        signature: 'deleteSession(sessionId: SessionId): Promise<void>',
+        description: 'Soft-delete one session: hide it from every grouping surface while its stored log stays on disk, so restoreSession can bring it back. The session leaves the archive set and every collection account — neither is a fact about a deleted session — but keeps its workspace `sessionIds` slot, so restoring returns it to the position it held. Idempotent.',
+        parameters: [{ name: 'sessionId', description: 'Session to delete.' }],
+        returns: 'resolution after durability.',
+      },
+      {
+        signature: 'restoreSession(sessionId: SessionId): Promise<void>',
+        description: 'Restore a soft-deleted session to the visible set. It comes back unarchived and in no collection, because deletion dropped both; its workspace position was never lost. An id that is not deleted resolves without writing.',
+        parameters: [{ name: 'sessionId', description: 'Session to restore.' }],
         returns: 'resolution after durability.',
       },
       {
@@ -2784,6 +2884,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CollectedOutput {\n    text: string;\n    truncated: boolean;\n    spillPath?: string;\n}',
   },
   {
+    name: 'Collection',
+    declaration: 'export interface Collection {\n    readonly id: CollectionId;\n    readonly title: string;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n}',
+  },
+  {
     name: 'CommandDefinition',
     declaration: 'export interface CommandDefinition {\n    readonly name: string;\n    readonly description: string;\n    readonly input?: CommandInputDescriptor;\n    readonly recordInput?: boolean;\n    readonly handler: (invocation: CommandInvocation) => CommandResult | Promise<CommandResult>;\n}',
   },
@@ -2876,6 +2980,42 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ContinuableSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'continuable\';\n    readonly label: string;\n    readonly agentProvider?: string;\n    readonly agentModel?: string;\n    readonly persona?: string;\n    readonly toolFilter?: ToolRestriction;\n}',
   },
   {
+    name: 'ConvertFidelity',
+    declaration: 'export type ConvertFidelity = \'faithful\' | \'lossy\';',
+  },
+  {
+    name: 'ConvertNote',
+    declaration: 'export interface ConvertNote {\n    readonly code: string;\n    readonly message: string;\n}',
+  },
+  {
+    name: 'ConvertOutcome',
+    declaration: 'export interface ConvertOutcome {\n    readonly outputPath: string;\n    readonly sourceFormat: DocumentFormat;\n    readonly targetFormat: DocumentFormat;\n    readonly fidelity: ConvertFidelity;\n    readonly steps: readonly ConvertPlanStep[];\n    readonly bytes: number;\n    readonly notes: readonly ConvertNote[];\n}',
+  },
+  {
+    name: 'ConvertPlan',
+    declaration: 'export interface ConvertPlan {\n    readonly steps: readonly ConvertPlanStep[];\n    readonly fidelity: ConvertFidelity;\n}',
+  },
+  {
+    name: 'ConvertPlanStep',
+    declaration: 'export interface ConvertPlanStep {\n    readonly providerId: string;\n    readonly from: DocumentFormat;\n    readonly to: DocumentFormat;\n    readonly fidelity: ConvertFidelity;\n}',
+  },
+  {
+    name: 'ConvertRequest',
+    declaration: 'export interface ConvertRequest {\n    readonly sourcePath: string;\n    readonly targetFormat: DocumentFormat;\n    readonly sourceFormat?: DocumentFormat;\n    readonly outputPath?: string;\n}',
+  },
+  {
+    name: 'ConvertRoute',
+    declaration: 'export interface ConvertRoute {\n    readonly from: DocumentFormat;\n    readonly to: DocumentFormat;\n    readonly fidelity: ConvertFidelity;\n    readonly priority: number;\n}',
+  },
+  {
+    name: 'ConvertSpec',
+    declaration: 'export interface ConvertSpec {\n    readonly sourcePath: string;\n    readonly sourceFormat: DocumentFormat;\n    readonly outputPath: string;\n    readonly targetFormat: DocumentFormat;\n    readonly plan: ConvertPlan;\n}',
+  },
+  {
+    name: 'ConvertStepSpec',
+    declaration: 'export interface ConvertStepSpec {\n    readonly sourcePath: string;\n    readonly sourceFormat: DocumentFormat;\n    readonly outputPath: string;\n    readonly targetFormat: DocumentFormat;\n}',
+  },
+  {
     name: 'CordisDynamicPackageId',
     declaration: 'export type CordisDynamicPackageId = Branded<\'CordisDynamicPackageId\'>;',
   },
@@ -2954,6 +3094,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DirectoryRegistrationHandle',
     declaration: 'export interface DirectoryRegistrationHandle {\n    (): void;\n    replace(entries: readonly LlmConfigurableProvider[]): void;\n}',
+  },
+  {
+    name: 'DocumentConvertProvider',
+    declaration: 'export interface DocumentConvertProvider {\n    readonly id: string;\n    readonly routes: readonly ConvertRoute[];\n    available(): boolean;\n    convert(step: ConvertStepSpec, signal?: AbortSignal): Promise<readonly ConvertNote[]>;\n}',
+  },
+  {
+    name: 'DocumentFormat',
+    declaration: 'export type DocumentFormat = \'pdf\' | \'doc\' | \'docx\' | \'odt\' | \'rtf\' | \'txt\' | \'html\' | \'xls\' | \'xlsx\' | \'ods\' | \'ppt\' | \'pptx\' | \'odp\';',
   },
   {
     name: 'Domain',
@@ -3645,7 +3793,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RpcErrorDetailsMap',
-    declaration: 'export interface RpcErrorDetailsMap {\n    \'bad-request\': {\n        issues: ZodIssue[];\n    };\n    \'cancelled\': {};\n    \'session-not-found\': {\n        sessionId: SessionId;\n    };\n    \'model-unavailable\': {\n        provider: string;\n        model: string;\n    };\n    \'session-conflict\': {\n        sessionId: SessionId;\n        requestedCwd: string;\n        existingCwd?: string;\n    };\n    \'invalid-time-zone\': {\n        value: string;\n    };\n    \'workspace-attach-failed\': {\n        sessionId: SessionId;\n        workspaceId: string;\n    };\n    \'workspace-not-found\': {\n        workspaceId: string;\n    };\n    \'workspace-invalid-path\': {\n        path: string;\n    };\n    \'workspace-name-conflict\': {\n        name: string;\n    };\n    \'workspace-move-invalid\': {\n        workspaceId: string;\n        sessionId: SessionId;\n        beforeSessionId?: SessionId;\n    };\n    \'directory-unreadable\': {\n        path: string;\n    };\n    \'directory-exists\': {\n        path: string;\n    };\n    \'directory-create-failed\': {\n        path: string;\n    };\n    \'directory-picker-unavailable\': {\n        capability: string;\n    };\n    \'agent-preset-read-only\': {\n        agentPreset: string;\n        reason: string;\n    };\n    \'agent-preset-locked\': {\n        sessionId: SessionId;\n        agentPreset: string;\n    };\n    \'agent-preset-conflict\': {\n        sessionId: SessionId;\n        requestedPreset: string;\n        existingPreset?: string;\n    };\n    \'agent-preset-not-found\': {\n        agentPreset: string;\n      /* …truncated — full shape in source */',
+    declaration: 'export interface RpcErrorDetailsMap {\n    \'bad-request\': {\n        issues: ZodIssue[];\n    };\n    \'cancelled\': {};\n    \'session-not-found\': {\n        sessionId: SessionId;\n    };\n    \'suite-not-found\': {\n        suiteId: string;\n    };\n    \'model-unavailable\': {\n        provider: string;\n        model: string;\n    };\n    \'session-conflict\': {\n        sessionId: SessionId;\n        requestedCwd: string;\n        existingCwd?: string;\n    };\n    \'invalid-time-zone\': {\n        value: string;\n    };\n    \'workspace-attach-failed\': {\n        sessionId: SessionId;\n        workspaceId: string;\n    };\n    \'workspace-not-found\': {\n        workspaceId: string;\n    };\n    \'workspace-invalid-path\': {\n        path: string;\n    };\n    \'workspace-name-conflict\': {\n        name: string;\n    };\n    \'workspace-move-invalid\': {\n        workspaceId: string;\n        sessionId: SessionId;\n        beforeSessionId?: SessionId;\n    };\n    \'collection-not-found\': {\n        collectionId: string;\n    };\n    \'directory-unreadable\': {\n        path: string;\n    };\n    \'directory-exists\': {\n        path: string;\n    };\n    \'directory-create-failed\': {\n        path: string;\n    };\n    \'directory-picker-unavailable\': {\n        capability: string;\n    };\n    \'agent-preset-read-only\': {\n        agentPreset: string;\n        reason: string;\n    };\n    \'agent-preset-locked\': {\n        sessionId: SessionId;\n        agentPreset: string;\n    };\n    \'agent-preset-conflict\': {\n        sessionId: SessionId;\n        request /* …truncated — full shape in source */',
   },
   {
     name: 'RpcId',
@@ -4226,6 +4374,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SubprocessTerminalSpawnSpec',
     declaration: 'export interface SubprocessTerminalSpawnSpec {\n    argv: readonly string[];\n    cwd: string;\n    env?: Record<string, string> | undefined;\n    rows: number;\n    cols: number;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n}',
+  },
+  {
+    name: 'SuiteSkillView',
+    declaration: 'export interface SuiteSkillView {\n    readonly name: string;\n    readonly title: string;\n    readonly summary: string;\n}',
+  },
+  {
+    name: 'SuiteView',
+    declaration: 'export interface SuiteView {\n    readonly id: string;\n    readonly title: string;\n    readonly tag: string;\n    readonly description: string;\n    readonly skills: readonly SuiteSkillView[];\n    readonly installed: boolean;\n    readonly current: boolean;\n}',
   },
   {
     name: 'SurfaceEvent',

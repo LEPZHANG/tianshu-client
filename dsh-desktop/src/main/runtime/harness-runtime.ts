@@ -2,7 +2,7 @@ import type { ChildProcessWithoutNullStreams, SpawnOptionsWithoutStdio } from 'n
 import { createWriteStream, existsSync, type WriteStream } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { createServer } from 'node:net'
-import { dirname, join } from 'node:path'
+import { dirname, posix, win32 } from 'node:path'
 import type { RuntimePhase, RuntimeSnapshot } from '../../shared/contracts'
 
 export interface HarnessRuntimeOptions {
@@ -12,6 +12,18 @@ export interface HarnessRuntimeOptions {
   dshPatchPath: string
   dshHome: string
   logPath: string
+  /**
+   * Root of the bundled document-conversion toolkit, laid out as
+   * {@link BUNDLED_CONVERT_TOOLS} expects. Undefined, or absent on disk, leaves the Harness with
+   * whatever converters the machine itself has.
+   */
+  toolsDirectory?: string
+  /**
+   * The GB/T 9704—2012 typefaces as the desktop keeps them outside the toolkit — `build/fonts` in a
+   * development run; a packaged build does not ship this directory. Used only when
+   * {@link toolsDirectory} carries none.
+   */
+  fontsDirectory?: string
   launchProcess(
     executablePath: string,
     args: string[],
@@ -32,14 +44,173 @@ export function buildHarnessArguments(port: number, patchPath?: string): string[
   ]
 }
 
+/**
+ * Directory holding a LibreOffice `soffice` executable, or undefined when none of the known
+ * installation locations has one.
+ *
+ * The Harness `document-convert-libreoffice` provider resolves the bare name `soffice` against PATH
+ * and caches the answer once, at plugin apply. Neither the Windows installer nor the macOS
+ * application bundle puts that binary on PATH, so on those platforms a user who HAS installed
+ * LibreOffice still gets a registered-but-unusable converter — and every `write_official_document`
+ * call taking the default `.docx` route fails with OFFICIAL_DOC_FORMAT_UNREACHABLE. Linux
+ * distributions install to a PATH directory already, so nothing is probed there.
+ */
+export function libreOfficeDirectory(
+  platform: NodeJS.Platform = process.platform,
+  environment: NodeJS.ProcessEnv = process.env
+): string | undefined {
+  // The platform's own path flavour, not the host's: a Windows path joined with POSIX separators
+  // would never match a real install, and it makes the branch untestable from Linux or macOS.
+  const path = platform === 'win32' ? win32 : posix
+
+  // Built from the environment rather than hardcoding C:\, so an install on another drive is found.
+  const candidates =
+    platform === 'win32'
+      ? [environment['ProgramFiles'], environment['ProgramFiles(x86)']]
+          .filter((root): root is string => Boolean(root))
+          .map((root) => ({
+            directory: path.join(root, 'LibreOffice', 'program'),
+            binary: 'soffice.exe'
+          }))
+      : platform === 'darwin'
+        ? [{ directory: '/Applications/LibreOffice.app/Contents/MacOS', binary: 'soffice' }]
+        : []
+
+  return candidates.find((candidate) =>
+    existsSync(path.join(candidate.directory, candidate.binary))
+  )?.directory
+}
+
+/**
+ * Where each bundled converter keeps its executables, relative to the toolkit root, in the order
+ * they are prepended to PATH. `scripts/fetch-convert-tools.mjs` writes this layout.
+ */
+export const BUNDLED_CONVERT_TOOLS = [
+  { id: 'libreoffice', segments: ['libreoffice', 'program'] },
+  { id: 'pandoc', segments: ['pandoc'] },
+  { id: 'poppler', segments: ['poppler'] }
+] as const
+
+/**
+ * The directories to prepend to the Harness process PATH so `document-convert-libreoffice`,
+ * `-pandoc`, and `-poppler` resolve their binaries.
+ *
+ * The bundled toolkit comes first and each entry is admitted only if it exists, so a partially
+ * fetched toolkit still contributes the converters it does have. The system LibreOffice probe runs
+ * only when the toolkit has no LibreOffice of its own — in development, where nothing was fetched,
+ * and on a machine whose user installed it themselves.
+ *
+ * @param toolsRoot - root of the bundled toolkit, or undefined when this build ships none.
+ * @param platform - the platform to resolve for; defaults to the host's.
+ * @param environment - the environment the install roots are read from; defaults to this process's.
+ * @returns absolute directories, in PATH order, each one verified to exist.
+ */
+export function convertToolDirectories(
+  toolsRoot: string | undefined,
+  platform: NodeJS.Platform = process.platform,
+  environment: NodeJS.ProcessEnv = process.env
+): string[] {
+  const path = platform === 'win32' ? win32 : posix
+  const directories: string[] = []
+  let bundledLibreOffice = false
+
+  if (toolsRoot !== undefined) {
+    for (const tool of BUNDLED_CONVERT_TOOLS) {
+      const directory = path.join(toolsRoot, ...tool.segments)
+      if (!existsSync(directory)) continue
+      directories.push(directory)
+      if (tool.id === 'libreoffice') bundledLibreOffice = true
+    }
+  }
+
+  if (!bundledLibreOffice) {
+    const installed = libreOfficeDirectory(platform, environment)
+    if (installed !== undefined) directories.push(installed)
+  }
+
+  return directories
+}
+
+/**
+ * Where the bundled GB/T 9704—2012 typefaces sit, relative to the toolkit root. Must stay identical
+ * to `BUNDLED_FONT_DESTINATION` in `scripts/fetch-convert-tools.mjs`, which is what puts them there;
+ * `test/convert-tools.test.ts` holds the two together.
+ */
+const BUNDLED_FONT_SEGMENTS = ['libreoffice', 'share', 'fonts', 'truetype'] as const
+
+/**
+ * The directory the official-document tool reads the typefaces to embed from.
+ *
+ * The same files serve two purposes: the bundled LibreOffice renders with them, and the tool copies
+ * them into each document it writes so a recipient's Word or WPS has them too. This returns a
+ * directory only when the build actually fetched them — a `package:win:no-fonts` build carries none,
+ * and the tool then writes documents that name the typefaces without carrying them.
+ *
+ * @param toolsRoot - root of the bundled toolkit, or undefined when this build ships none.
+ * @param platform - the platform to resolve for; defaults to the host's.
+ * @returns the absolute font directory, or undefined when this build has no bundled typefaces.
+ */
+export function bundledFontDirectory(
+  toolsRoot: string | undefined,
+  platform: NodeJS.Platform = process.platform
+): string | undefined {
+  if (toolsRoot === undefined) return undefined
+  const path = platform === 'win32' ? win32 : posix
+  const directory = path.join(toolsRoot, ...BUNDLED_FONT_SEGMENTS)
+  return existsSync(directory) ? directory : undefined
+}
+
+/**
+ * The directory the official-document tool embeds typefaces from: the bundled toolkit's copy when it
+ * has one, otherwise the desktop's own font directory.
+ *
+ * The fallback exists because a development run, or a build packaged before the toolkit was fetched,
+ * has the fonts in `build/fonts` but no toolkit to hold them. Without it the tool writes documents that
+ * only name the typefaces, and every reader without them sees substituted glyphs.
+ *
+ * @param toolsRoot - root of the bundled toolkit, or undefined when this build ships none.
+ * @param fontsDirectory - the desktop's own font directory, or undefined when it has none.
+ * @param platform - the platform to resolve for; defaults to the host's.
+ * @returns the absolute font directory, or undefined when neither location exists.
+ */
+export function officialDocumentFontDirectory(
+  toolsRoot: string | undefined,
+  fontsDirectory: string | undefined,
+  platform: NodeJS.Platform = process.platform
+): string | undefined {
+  const bundled = bundledFontDirectory(toolsRoot, platform)
+  if (bundled !== undefined) return bundled
+  return fontsDirectory !== undefined && existsSync(fontsDirectory) ? fontsDirectory : undefined
+}
+
 export function buildHarnessSpawnOptions(
   launchDirectory: string,
   dshHome: string,
+  toolsRoot?: string,
   platform: NodeJS.Platform = process.platform,
-  environment: NodeJS.ProcessEnv = process.env
+  environment: NodeJS.ProcessEnv = process.env,
+  fontsDirectory?: string
 ): SpawnOptionsWithoutStdio {
   const { ELECTRON_RUN_AS_NODE: _runAsNode, ...parentEnvironment } = environment
   const pathKey = platform === 'win32' ? 'Path' : 'PATH'
+  const currentPath = environment[pathKey] ?? environment.PATH ?? ''
+
+  // Derived from the platform argument, not node:path's host-dependent `delimiter`, so the
+  // Windows branch stays testable from a POSIX machine.
+  const pathDelimiter = platform === 'win32' ? ';' : ':'
+
+  // Prepend the converters so each provider's PATH lookup finds them; skip any directory already
+  // on PATH, so a restart cannot keep growing the variable.
+  const existing = new Set(currentPath.split(pathDelimiter))
+  const additions = convertToolDirectories(toolsRoot, platform, environment).filter(
+    (directory) => !existing.has(directory)
+  )
+  const nextPath = [...additions, currentPath].filter(Boolean).join(pathDelimiter)
+
+  // The official-document tool embeds these into every document it writes, so a recipient who never
+  // installed the typefaces still sees them. Absent, the variable is left unset rather than empty:
+  // the plugin treats a configured-but-unreadable directory as a hard failure.
+  const fontDirectory = officialDocumentFontDirectory(toolsRoot, fontsDirectory, platform)
 
   return {
     cwd: launchDirectory,
@@ -47,7 +218,11 @@ export function buildHarnessSpawnOptions(
       ...parentEnvironment,
       DSH_HOME: dshHome,
       NO_COLOR: '1',
-      [pathKey]: environment[pathKey] ?? environment.PATH ?? ''
+      ...(fontDirectory === undefined ? {} : { DSH_OFFICIAL_DOCUMENT_FONTS: fontDirectory }),
+      // Both casings on Windows: the Harness reads `PATH` exactly and only falls back to a
+      // case-insensitive lookup when it is absent, so writing `Path` alone would be shadowed.
+      [pathKey]: nextPath,
+      ...(platform === 'win32' ? { PATH: nextPath } : {})
     },
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true
@@ -143,6 +318,23 @@ export class HarnessRuntime {
     this.writeLog(`\n[desktop] starting ${new Date().toISOString()}`)
     this.writeLog(`[desktop] launch directory ${launchDirectory}`)
     this.writeLog(`[desktop] endpoint ${url}`)
+    // The offline toolkit is the difference between a working and a silently degraded converter,
+    // and a provider that finds nothing only reports it as an unreachable format much later.
+    const toolDirectories = convertToolDirectories(this.options.toolsDirectory)
+    this.writeLog(
+      toolDirectories.length > 0
+        ? `[desktop] document converters on PATH: ${toolDirectories.join(', ')}`
+        : '[desktop] no document converters found; format conversion will be unavailable'
+    )
+    const fontDirectory = officialDocumentFontDirectory(
+      this.options.toolsDirectory,
+      this.options.fontsDirectory
+    )
+    this.writeLog(
+      fontDirectory !== undefined
+        ? `[desktop] official-document typefaces embedded from ${fontDirectory}`
+        : '[desktop] no official-document typefaces found; 公文 files will name them without carrying them'
+    )
     this.setState('starting', 'Starting DeepSeek Harness…')
 
     let child: ChildProcessWithoutNullStreams
@@ -150,7 +342,14 @@ export class HarnessRuntime {
       child = this.options.launchProcess(
         this.options.nodeExecutablePath,
         args,
-        buildHarnessSpawnOptions(launchDirectory, this.options.dshHome)
+        buildHarnessSpawnOptions(
+          launchDirectory,
+          this.options.dshHome,
+          this.options.toolsDirectory,
+          process.platform,
+          process.env,
+          this.options.fontsDirectory
+        )
       )
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

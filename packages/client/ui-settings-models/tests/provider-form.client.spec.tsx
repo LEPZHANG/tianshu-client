@@ -1405,9 +1405,9 @@ describe('local runtime presets', () => {
     await mountCard()
     fireEvent.click(screen.getByRole('button', { name: en.presetVllm }))
 
-    expect((screen.getByLabelText(en.customRoute) as HTMLInputElement).value).toBe('vllm')
-    expect((screen.getByLabelText(en.customDisplayName) as HTMLInputElement).value).toBe('vLLM')
-    expect((screen.getByLabelText(en.baseUrl) as HTMLInputElement).value)
+    expect(screen.getByLabelText<HTMLInputElement>(en.customRoute).value).toBe('vllm')
+    expect(screen.getByLabelText<HTMLInputElement>(en.customDisplayName).value).toBe('vLLM')
+    expect(screen.getByLabelText<HTMLInputElement>(en.baseUrl).value)
       .toBe('http://127.0.0.1:8000/v1')
     // The preset is a fill gesture, not a submit: nothing was written.
     expect(screen.queryByText(en.creating)).toBeNull()
@@ -1440,7 +1440,7 @@ describe('remote GPU card', () => {
         taken={options.taken ?? []}
         revision={controller.store.getSnapshot().namespaces.get('llm-pi-ai')?.revision ?? 3}
         api={{ settings: { ...scripted.face.settings, mutate } } as never}
-        tunnel={{ probe: probe as never } as never}
+        tunnel={{ probe } as never}
         t={t}
         readOnly={false}
         onClose={() => {}}
@@ -1478,7 +1478,7 @@ describe('remote GPU card', () => {
     expect(providerWrite.ns).toBe('llm-pi-ai')
     expect(providerWrite.ops[0]).toMatchObject({
       op: 'set', path: ['providers', 'gpu'],
-      value: expect.objectContaining({ api: 'openai-completions', baseURL: 'http://127.0.0.1:18000/v1' }),
+      value: { api: 'openai-completions', baseURL: 'http://127.0.0.1:18000/v1' },
     })
   })
 

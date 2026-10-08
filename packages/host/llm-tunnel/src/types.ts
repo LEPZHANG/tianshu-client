@@ -1,6 +1,10 @@
 /** Wire-facing types of the SSH tunnel manager. @module @deepseek-ai/dsh-host-llm-tunnel/types */
 
-/** Brand an existing tunnel host id at the owning boundary. */
+/**
+ * Brand an existing tunnel host id at the owning boundary.
+ * @param value - the settings key naming the host, already known to exist.
+ * @returns the same string, branded for cross-boundary use.
+ */
 export function tunnelHostId(value: string): TunnelHostId {
   return value as TunnelHostId
 }

@@ -569,6 +569,157 @@ export interface Config {
 
 来源：[`packages/credentials/credentials-local/src/index.ts:55`](../packages/credentials/credentials-local/src/index.ts)
 
+<a id="deepseek-aidsh-document-convert"></a>
+
+## `@deepseek-ai/dsh-document-convert`
+
+```ts config-catalog
+/**
+ * Config for the conversion seam.
+ *
+ * `maxSteps` bounds how far planning will chain converters. Two is the shipped ceiling because one hop
+ * covers every conversion a single converter performs and the second exists to reach a target through an
+ * intermediate format; raising it buys increasingly dubious chains, and lowering it to 1 restricts the
+ * seam to conversions some registered provider performs directly.
+ *
+ * `routes` pins an edge to one provider, spelled `{ 'docx->html': 'pandoc' }`. It is the remedy a
+ * `CONVERT_ROUTE_AMBIGUOUS` failure names, and the way a composition overrides the fidelity/priority
+ * ranking for a pair it has an opinion about.
+ *
+ * `tempDir` is the parent directory for the scratch directory a multi-step plan writes intermediates
+ * into.
+ *
+ * `maxVerifyBytes` bounds the output-verification read. Every step's result is read back and checked
+ * against its target format, which needs the whole file in memory; above this size the check is skipped,
+ * because the failures it catches — an empty export, a container of the wrong type — produce small files,
+ * and a converter that wrote tens of megabytes wrote a document.
+ */
+export interface DocumentConvertConfig {
+  /** Maximum converter steps one plan may chain. */
+  readonly maxSteps?: number
+  /** Edge key (`<from>-><to>`) to the provider id that must serve it. */
+  readonly routes?: Readonly<Record<string, string>>
+  /** Parent directory for per-conversion scratch directories. */
+  readonly tempDir?: string
+  /** Largest output, in bytes, that is read back and verified. */
+  readonly maxVerifyBytes?: number
+}
+```
+
+来源：[`packages/convert/document-convert/src/index.ts:86`](../packages/convert/document-convert/src/index.ts)
+
+<a id="deepseek-aidsh-document-convert-libreoffice"></a>
+
+## `@deepseek-ai/dsh-document-convert-libreoffice`
+
+需要：`documentConvert` · `subprocess`
+
+```ts config-catalog
+/** Plugin config: which LibreOffice to run, where it may write, and how it ranks (all defaulted). */
+export interface Config {
+  /**
+   * The executable: a bare PATH name or an absolute path. A macOS installation that keeps `soffice`
+   * inside the application bundle needs the absolute path
+   * (`/Applications/LibreOffice.app/Contents/MacOS/soffice`).
+   */
+  binary?: string
+  /** Parent directory for the private user profile and output directory each conversion creates. */
+  workDir?: string
+  /** Tie-break rank against other providers offering the same route at the same fidelity; higher wins. */
+  priority?: number
+  /** SIGTERM→SIGKILL grace period when a conversion is cancelled, in milliseconds. */
+  graceMs?: number
+}
+```
+
+来源：[`packages/convert/document-convert-libreoffice/src/index.ts:40`](../packages/convert/document-convert-libreoffice/src/index.ts)
+
+<a id="deepseek-aidsh-document-convert-msoffice"></a>
+
+## `@deepseek-ai/dsh-document-convert-msoffice`
+
+需要：`documentConvert` · `subprocess`
+
+```ts config-catalog
+/** Plugin config: which shell drives COM, where conversions may write, and how the suites rank. */
+export interface Config {
+  /**
+   * The PowerShell executable: a bare PATH name or an absolute path. Windows PowerShell 5.1 is the
+   * default because Office COM interop is most thoroughly exercised there and it is present on every
+   * Windows installation, while PowerShell 7 is an optional install.
+   */
+  shellBinary?: string
+  /** Parent directory for the scratch directory each conversion creates. */
+  workDir?: string
+  /**
+   * Tie-break rank for Microsoft Office's routes; higher wins. The shipped default outranks both WPS and
+   * LibreOffice, so a machine with Microsoft Office converts OOXML through the application that defines
+   * the format.
+   */
+  msofficePriority?: number
+  /** Tie-break rank for WPS Office's routes; must differ from {@link Config.msofficePriority}. */
+  wpsPriority?: number
+  /** SIGTERM→SIGKILL grace period when a conversion is cancelled, in milliseconds. */
+  graceMs?: number
+}
+```
+
+来源：[`packages/convert/document-convert-msoffice/src/index.ts:60`](../packages/convert/document-convert-msoffice/src/index.ts)
+
+<a id="deepseek-aidsh-document-convert-pandoc"></a>
+
+## `@deepseek-ai/dsh-document-convert-pandoc`
+
+需要：`documentConvert` · `subprocess`
+
+```ts config-catalog
+/** Plugin config: which pandoc to run and how its routes rank (all defaulted). */
+export interface Config {
+  /** The pandoc executable: a bare PATH name or an absolute path. */
+  binary?: string
+  /**
+   * Tie-break rank for every route pandoc declares; higher wins. The shipped default outranks
+   * LibreOffice so that the HTML edges reach pandoc, while the office-to-office edges stay with
+   * LibreOffice regardless — those are declared `lossy`, and fidelity is ranked ahead of priority.
+   */
+  priority?: number
+  /** SIGTERM→SIGKILL grace period when a conversion is cancelled, in milliseconds. */
+  graceMs?: number
+}
+```
+
+来源：[`packages/convert/document-convert-pandoc/src/index.ts:33`](../packages/convert/document-convert-pandoc/src/index.ts)
+
+<a id="deepseek-aidsh-document-convert-poppler"></a>
+
+## `@deepseek-ai/dsh-document-convert-poppler`
+
+需要：`documentConvert` · `subprocess`
+
+```ts config-catalog
+/** Plugin config: which poppler binaries to run and how the extracted routes rank (all defaulted). */
+export interface Config {
+  /** The `pdftotext` executable: a bare PATH name or an absolute path. */
+  pdftotextBinary?: string
+  /** The `pdftohtml` executable: a bare PATH name or an absolute path. */
+  pdftohtmlBinary?: string
+  /**
+   * The `pdffonts` executable, used only to explain an extraction that recovered nothing. Its absence
+   * costs the explanation, never the conversion.
+   */
+  pdffontsBinary?: string
+  /**
+   * Tie-break rank for both extraction routes; higher wins. The shipped default outranks LibreOffice so
+   * that `pdf -> html` reaches poppler's text extraction rather than LibreOffice's Draw-mediated export.
+   */
+  priority?: number
+  /** SIGTERM→SIGKILL grace period when an extraction is cancelled, in milliseconds. */
+  graceMs?: number
+}
+```
+
+来源：[`packages/convert/document-convert-poppler/src/index.ts:35`](../packages/convert/document-convert-poppler/src/index.ts)
+
 <a id="deepseek-aidsh-e2b"></a>
 
 ## `@deepseek-ai/dsh-e2b`
@@ -786,6 +937,41 @@ export interface Config {
 ```
 
 来源：[`packages/host/frontend-static/src/index.ts:28`](../packages/host/frontend-static/src/index.ts)
+
+<a id="deepseek-aidsh-host-llm-tunnel"></a>
+
+## `@deepseek-ai/dsh-host-llm-tunnel`
+
+需要：`subprocess`
+
+```ts config-catalog
+/** Effective configuration of the whole tunnel namespace. */
+export interface TunnelSection {
+  /** Configured hosts keyed by their settings key, which is also the host id. */
+  hosts: Record<string, TunnelHostConfig>
+}
+
+/** Where the SSH server is and how the model endpoint is reached through it. */
+export interface TunnelHostConfig {
+  /** SSH server hostname or address (a `~/.ssh/config` alias works). */
+  host: string
+  /** SSH server port. */
+  sshPort: number
+  /** SSH login user. */
+  user: string
+  /**
+   * The model endpoint as seen FROM the SSH server. vLLM binds 127.0.0.1 by
+   * default, so the common value is `127.0.0.1`.
+   */
+  remoteHost: string
+  /** The model endpoint's port on the remote side. */
+  remotePort: number
+  /** The localhost port the forward listens on. */
+  localPort: number
+}
+```
+
+来源：[`packages/host/llm-tunnel/src/index.ts:39`](../packages/host/llm-tunnel/src/index.ts)
 
 <a id="deepseek-aidsh-host-webserver"></a>
 
@@ -1901,6 +2087,20 @@ export interface Config {
 
 来源：[`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
 
+<a id="deepseek-aidsh-skill-suites"></a>
+
+## `@deepseek-ai/dsh-skill-suites`
+
+```ts config-catalog
+/** Config accepted by this plugin. */
+export interface Config {
+  /** DeepSeek Harness config root; the user skill root lives beneath it. */
+  dshHome?: string
+}
+```
+
+来源：[`packages/skill/skill-suites/src/index.ts:41`](../packages/skill/skill-suites/src/index.ts)
+
 <a id="deepseek-aidsh-spill-local"></a>
 
 ## `@deepseek-ai/dsh-spill-local`
@@ -2374,6 +2574,25 @@ export interface Config {
 
 来源：[`packages/shell/tool-bash-persistent/src/index.ts:400`](../packages/shell/tool-bash-persistent/src/index.ts)
 
+<a id="deepseek-aidsh-tool-document-convert"></a>
+
+## `@deepseek-ai/dsh-tool-document-convert`
+
+需要：`tools` · `systemPrompt` · `documentConvert` · `fs`
+
+```ts config-catalog
+/** Plugin config: the deployment's tool-call budget for one conversion. */
+export interface Config {
+  /**
+   * Cooperative tool-call budget in milliseconds. The default is large because a cold LibreOffice start
+   * costs seconds before the document is read, and a multi-step plan pays that cost per step.
+   */
+  timeoutMs?: number
+}
+```
+
+来源：[`packages/convert/tool-document-convert/src/index.ts:56`](../packages/convert/tool-document-convert/src/index.ts)
+
 <a id="deepseek-aidsh-tool-fs"></a>
 
 ## `@deepseek-ai/dsh-tool-fs`
@@ -2500,6 +2719,35 @@ export interface Config {
 ```
 
 来源：[`packages/lsp/tool-lsp/src/index.ts:58`](../packages/lsp/tool-lsp/src/index.ts)
+
+<a id="deepseek-aidsh-tool-official-document"></a>
+
+## `@deepseek-ai/dsh-tool-official-document`
+
+需要：`tools` · `systemPrompt` · `documentConvert` · `fs`
+
+```ts config-catalog
+/** Plugin config: the deployment's tool-call budget, and where the typefaces to embed are kept. */
+export interface Config {
+  /**
+   * Cooperative tool-call budget in milliseconds. Writing the `.odt` costs milliseconds; every other
+   * format then pays for a LibreOffice start, which is where the budget actually goes.
+   */
+  timeoutMs?: number
+  /**
+   * Directory holding the GB/T 9704—2012 `.ttf` files, whose fonts every document written here then
+   * carries inside it. Empty, the default, writes documents that only name the typefaces — correct for
+   * a host whose readers all have them installed.
+   *
+   * The fonts are commercially licensed and are not in this repository, so this names a directory the
+   * deployment supplies; the desktop application points it at the typefaces inside its own installer.
+   * A directory that cannot be read fails at apply rather than producing documents with nothing in them.
+   */
+  fontDirectory?: string
+}
+```
+
+来源：[`packages/convert/tool-official-document/src/index.ts:102`](../packages/convert/tool-official-document/src/index.ts)
 
 <a id="deepseek-aidsh-tool-pwsh"></a>
 

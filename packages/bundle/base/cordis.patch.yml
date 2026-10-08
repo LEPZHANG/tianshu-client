@@ -417,6 +417,47 @@
         fetch: false
         searchTimeoutMs: 60000
 
+    # Document conversion. The seam plans a route across the registered converters and refuses a pair
+    # none of them serves, rather than writing a file of the wrong type — LibreOffice exits 0 for
+    # several conversions it cannot perform. Microsoft Office and WPS are preferred where they exist,
+    # because an OOXML file's own application renders it and LibreOffice approximates it; both suites are
+    # driven over COM, so they contribute nothing off Windows. LibreOffice covers every family as the
+    # fallback and owns the OpenDocument routes outright, which is what keeps the official-document
+    # tool's GB/T 9704—2012 pages away from Word's ODF import. poppler makes PDF usable as a SOURCE,
+    # which none of the others can do, and a two-step plan carries that extracted text onwards. Every
+    # provider reports itself unusable where its mechanism is absent, so this composition degrades to
+    # whichever converters the host actually has.
+    - id: document-convert
+      name: '@deepseek-ai/dsh-document-convert'
+
+    - id: document-convert-libreoffice
+      name: '@deepseek-ai/dsh-document-convert-libreoffice'
+
+    - id: document-convert-msoffice
+      name: '@deepseek-ai/dsh-document-convert-msoffice'
+
+    - id: document-convert-pandoc
+      name: '@deepseek-ai/dsh-document-convert-pandoc'
+
+    - id: document-convert-poppler
+      name: '@deepseek-ai/dsh-document-convert-poppler'
+
+    - id: tool-document-convert
+      name: '@deepseek-ai/dsh-tool-document-convert'
+
+    # The official-document tool hangs off the convert family because it is the seam's second consumer:
+    # it writes one format itself, the OpenDocument text it assembles from the GB/T 9704—2012 layout,
+    # and reaches every other format by handing that file to the same seam. Its default output is docx,
+    # so on a host without LibreOffice it produces odt and says so rather than failing silently.
+    - id: tool-official-document
+      name: '@deepseek-ai/dsh-tool-official-document'
+      config:
+        # The three commercially licensed 公文 typefaces cannot live in this repository, so the
+        # deployment says where it keeps them and the tool embeds them into every document it writes.
+        # The desktop application sets this to the typefaces inside its own installer; unset, documents
+        # name the faces without carrying them, which is correct where every reader has them installed.
+        fontDirectory: !!js process.env.DSH_OFFICIAL_DOCUMENT_FONTS ?? ''
+
     # ── rows every mode mounts, whose values each overlay may state ──────────────
 
     # The tool registry. Presentation mode is a deployment choice; omitting it here

@@ -18,6 +18,7 @@ import type { ReactNode } from 'react'
 import type { IApiClient, TunnelProbeResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { EditorFooter } from './EditorFooter.tsx'
+import { EditorHeader } from './EditorHeader.tsx'
 import { messageOf } from './store.ts'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
@@ -77,7 +78,11 @@ export function RemoteGpuCard(props: RemoteGpuCardProps): ReactNode {
   const sshPortValue = portOf(sshPort)
   const remotePortValue = portOf(remotePort)
   const localPortValue = portOf(localPort)
-  const portsValid = sshPortValue !== undefined && remotePortValue !== undefined && localPortValue !== undefined
+  // Carried as one value so the three ports narrow together for the writer below.
+  const ports = sshPortValue !== undefined && remotePortValue !== undefined && localPortValue !== undefined
+    ? { sshPort: sshPortValue, remotePort: remotePortValue, localPort: localPortValue }
+    : undefined
+  const portsValid = ports !== undefined
   const ready = id.length > 0 && !idInvalid && !idTaken && host.length > 0 && user.length > 0 && portsValid
 
   const hint = failure !== undefined || ready || id.length === 0 || idInvalid || idTaken
@@ -89,10 +94,10 @@ export function RemoteGpuCard(props: RemoteGpuCardProps): ReactNode {
         : portsValid ? undefined : t('remoteGpuPortInvalid')
 
   /** Persist both rows: the tunnel host and the provider pointing at it. */
-  const createOnce = async (): Promise<string | undefined> => {
+  const createOnce = async (validPorts: NonNullable<typeof ports>): Promise<string | undefined> => {
     const hostProfile = {
-      host, sshPort: sshPortValue!, user,
-      remoteHost: '127.0.0.1', remotePort: remotePortValue!, localPort: localPortValue!,
+      host, sshPort: validPorts.sshPort, user,
+      remoteHost: '127.0.0.1', remotePort: validPorts.remotePort, localPort: validPorts.localPort,
     }
     const tunnelWrite = await api.settings.mutate({
       ns: 'llm-tunnel',
@@ -107,7 +112,7 @@ export function RemoteGpuCard(props: RemoteGpuCardProps): ReactNode {
       ops: [{
         op: 'set',
         path: ['providers', id],
-        value: { displayName: `${id} (SSH)`, api: 'openai-completions', baseURL: `http://127.0.0.1:${String(localPortValue)}/v1`, models: [] },
+        value: { displayName: `${id} (SSH)`, api: 'openai-completions', baseURL: `http://127.0.0.1:${String(validPorts.localPort)}/v1`, models: [] },
       }],
       expectedRevision: openedAt,
     })
@@ -125,10 +130,11 @@ export function RemoteGpuCard(props: RemoteGpuCardProps): ReactNode {
   }
 
   const create = async (): Promise<void> => {
+    if (ports === undefined) return
     setBusy(true)
     setFailure(undefined)
     try {
-      const outcome = await createOnce()
+      const outcome = await createOnce(ports)
       if (outcome !== undefined) {
         setFailure(outcome)
         return
@@ -173,9 +179,7 @@ export function RemoteGpuCard(props: RemoteGpuCardProps): ReactNode {
 
   return (
     <div className={styles['editor']}>
-      <div className={styles['editorHeader']}>
-        <span className={styles['editorTitle']}>{t('remoteGpuTitle')}</span>
-      </div>
+      <EditorHeader title={t('remoteGpuTitle')} />
       <div className={styles['field']}>
         <span className={styles['fieldLabel']}>{t('remoteGpuId')}</span>
         <input

@@ -12,10 +12,10 @@ export const name = 'skill-suites-invariant'
 export const inject = ['invariants']
 
 /**
- * Invariant: the built-in suite table's every skill body is a well-formed
- * SKILL.md (frontmatter present, its name matching the install directory).
- * Asserted in package tests; the installer reserves package ownership so
- * the runtime reporter covers the table once loaded.
+ * No runtime invariant: the suite catalogue is one immutable table compiled into the package, and install
+ * state is read back from the filesystem on every projection rather than tracked in memory, so this package
+ * owns no mutable registry or event stream for a check to fold over. That the table's bodies are well-formed
+ * SKILL.md files the provider would discover is a property of a fixed value, pinned by the package tests.
  */
 const install: InvariantInstaller = () => {}
 

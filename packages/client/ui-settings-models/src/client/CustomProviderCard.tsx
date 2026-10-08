@@ -26,6 +26,7 @@ import type { ReactNode } from 'react'
 import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'
 import { apiKeyFailure } from './apiKey.ts'
 import { EditorFooter } from './EditorFooter.tsx'
+import { EditorHeader } from './EditorHeader.tsx'
 import { validateDeepSeekModels } from './DeepSeekModelsEditor.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
 import type { ModelDraft } from './ModelListEditor.tsx'
@@ -209,16 +210,14 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
 
   return (
     <div className={styles['editor']}>
-      <div className={styles['editorHeader']}>
-        <span className={styles['editorTitle']}>{t('customTitle')}</span>
-      </div>
+      <EditorHeader title={t('customTitle')} />
       {/* Local-runtime presets: one click fills the whole declaration for the
           conventional self-hosted endpoints. LAN GPUs work the same way —
           paste the server's address as the base URL. */}
       <div className={styles['presetRow']}>
         <span className={styles['fieldLabel']}>{t('presetLabel')}</span>
         <div className={styles['presetChips']}>
-          {LOCAL_PRESETS.map(preset => {
+          {LOCAL_PRESETS.map((preset) => {
             const free = !taken.includes(preset.route)
             return (
               <button

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-28-official-document-level-faces-and-dev-fonts.md
+2026-09-28-official-document-level-faces-and-dev-fonts.md: f198ed10372bdf3900c2e46d34c9d9f52ca4eecc
+2026-09-28-official-document-level-faces-and-dev-fonts.zh.md: ad8a7adf93c8eaf4f5ec19c63fef2a4e494e6fe1

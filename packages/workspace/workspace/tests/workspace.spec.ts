@@ -172,6 +172,11 @@ function storedState(pool: MemoryMediaPool): WorkspaceDomainState {
   return pool.media.get('workspace')!.global as WorkspaceDomainState
 }
 
+/** The domain global after initialization with nothing in any axis. */
+const EMPTY_STATE = {
+  initialized: true, workspaceIds: [], archivedSessionIds: [], collections: [], deletedSessionIds: [],
+}
+
 let base: string
 const tempDirs: string[] = []
 
@@ -201,7 +206,7 @@ describe('WorkspaceRegistry lifecycle and bootstrap', () => {
     await fiber.await()
     expect(ctx.workspaceRegistry.list()).toEqual([])
     expect(list).toHaveBeenCalledTimes(1)
-    expect(storedState(pool)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [], collections: [], deletedSessionIds: [] })
+    expect(storedState(pool)).toEqual(EMPTY_STATE)
   })
 
   it('bootstraps once from list headers only, in workspace/session createdAt order', async () => {
@@ -265,7 +270,7 @@ describe('WorkspaceRegistry lifecycle and bootstrap', () => {
     const second = await harness({ pool, sessions: [header('late', late, 100)] })
     expect(second.list).not.toHaveBeenCalled()
     expect(second.registry.list()).toEqual([])
-    expect(storedState(pool)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [], collections: [], deletedSessionIds: [] })
+    expect(storedState(pool)).toEqual(EMPTY_STATE)
   })
 
   it('reuses partial records after a bootstrap record write fails', async () => {
@@ -493,7 +498,7 @@ describe('WorkspaceRegistry create and lookup', () => {
     await expect(result.registry.delete(workspace.id)).resolves.toBe(false)
     expect(result.registry.get(workspace.id)).toBeUndefined()
     expect(result.registry.list()).toEqual([])
-    expect(storedState(result.pool)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [], collections: [], deletedSessionIds: [] })
+    expect(storedState(result.pool)).toEqual(EMPTY_STATE)
     expect(result.pool.media.get('workspace')!.tables.get('workspaces')!.has(workspace.id)).toBe(false)
     await expect(realpath(dir)).resolves.toBe(dir)
     expect(result.list).toHaveBeenCalledTimes(1)
@@ -828,7 +833,7 @@ describe('header-validated membership projection', () => {
     const createRecovery = await harness({ pool: interruptedCreate })
     expect(createRecovery.registry.list()).toEqual([])
     expect(interruptedCreate.media.get('workspace')!.tables.get('workspaces')!.has(createId)).toBe(false)
-    expect(storedState(interruptedCreate)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [], collections: [], deletedSessionIds: [] })
+    expect(storedState(interruptedCreate)).toEqual(EMPTY_STATE)
 
     const interruptedDelete = storedPool(
       [[deleteId, record(deleteDir, [])]],
@@ -841,7 +846,7 @@ describe('header-validated membership projection', () => {
     const deleteRecovery = await harness({ pool: interruptedDelete })
     expect(deleteRecovery.registry.list()).toEqual([])
     expect(interruptedDelete.media.get('workspace')!.tables.get('workspaces')!.has(deleteId)).toBe(false)
-    expect(storedState(interruptedDelete)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [], collections: [], deletedSessionIds: [] })
+    expect(storedState(interruptedDelete)).toEqual(EMPTY_STATE)
 
     const corruptPending = storedPool(
       [[deleteId, record(deleteDir, [])]],

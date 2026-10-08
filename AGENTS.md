@@ -24,6 +24,7 @@ packages/    @deepseek-ai/dsh-<pkg> workspaces at packages/<group>/<pkg>/
   skill/       skill provider registry + local impl + catalog/loader tool
   web/         web capability: Service Definition + search/fetch providers + tool Consumer
   compaction/     compaction capability + basic provider
+  convert/     document conversion capability: route-planning seam + LibreOffice/poppler providers + convert_document tool
   context/     request-context plugins
   subagent/    subagent capability: Service Definition + providers + delegation Consumers
   bundle/      installable dsh --profile patch-layer bundles

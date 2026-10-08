@@ -1,7 +1,8 @@
 /**
  * Generate `THIRD_PARTY_NOTICES.md` from the workspace manifests: every
  * external dependency named by a workspace `package.json`, the vendored-package
- * manifest in `vendor/README.md`, the Python `pyproject.toml` files, and the
+ * manifest in `vendor/README.md`, the `BUNDLED_ASSETS` table of third-party
+ * files committed into a package, the Python `pyproject.toml` files, and the
  * pnpm patch list. License and repository metadata come from the installed
  * store, so the tree must be installed. `--check` verifies the committed
  * artifact. Tier policy and ownership live in
@@ -15,6 +16,44 @@ import { parse as parseToml, type TomlTableWithoutBigInt, type TomlValueWithoutB
 import parseSpdx from 'spdx-expression-parse'
 
 const root = resolve(import.meta.dirname, '..')
+/** A third-party file committed into a package and shipped verbatim inside it. */
+interface BundledAssetRow {
+  /** Project name as its own documentation spells it. */
+  name: string
+  /** Upstream release the committed copy was taken from. */
+  version: string
+  /** SPDX identifier the upstream release declares. */
+  license: string
+  /** Upstream project home. */
+  upstream: string
+  /** Repository-relative path of the committed file. */
+  path: string
+  /** Repository-relative path of the license text that travels with it. */
+  notice: string
+  /** Why a package ships this file instead of resolving it at runtime. */
+  reason: string
+}
+
+/**
+ * Third-party files this repository redistributes as committed bytes.
+ *
+ * Every other tier is derived from a manifest, so a file committed into a
+ * package is invisible to all of them: this table is its only disclosure.
+ * `collectBundledAssets` rejects a row whose files are absent, which keeps the
+ * table from outliving what it describes.
+ */
+const BUNDLED_ASSETS: readonly BundledAssetRow[] = [
+  {
+    name: 'Apache ECharts',
+    version: '5.6.0',
+    license: 'Apache-2.0',
+    upstream: 'https://github.com/apache/echarts',
+    path: 'packages/skill/skill-suites/assets/echarts/echarts.min.js',
+    notice: 'packages/skill/skill-suites/assets/echarts/echarts-LICENSE.txt',
+    reason: 'Installed beside the 数据可视化 skill so the chart pages it writes load ECharts from disk; the product ships into air-gapped deployments where a CDN reference renders a blank page.',
+  },
+]
+
 const OUT = 'THIRD_PARTY_NOTICES.md'
 
 /** Dependency-declaration kinds a consumer resolves at runtime. */
@@ -75,7 +114,9 @@ const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   '@modelcontextprotocol/server-filesystem': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },
   // No repository field in the published manifest.
   'node-addon-require-builtin': { repo: 'https://www.npmjs.com/package/node-addon-require-builtin' },
-  'dsh-webui-auth': { repo: 'https://github.com/Yuuz12/dsh-webui-auth' },
+  // Linked only into `packages/bundle/web-app/node_modules`, which neither pnpm
+  // store this generator reads exposes, so both fields come from its manifest here.
+  'dsh-webui-auth': { license: 'MIT', repo: 'https://github.com/Yuuz12/dsh-webui-auth' },
 }
 
 /**
@@ -442,6 +483,21 @@ function collectVendored(): VendoredRow[] {
   return rows
 }
 
+/**
+ * Confirm every bundled-asset row still describes files on disk.
+ * @returns the disclosure table, in declaration order.
+ */
+function collectBundledAssets(): readonly BundledAssetRow[] {
+  for (const asset of BUNDLED_ASSETS) {
+    for (const file of [asset.path, asset.notice]) {
+      if (!existsSync(resolve(root, file))) {
+        throw new Error(`gen-third-party-notices: bundled asset ${asset.name} names ${file}, which is not in the tree; update BUNDLED_ASSETS or restore the file.`)
+      }
+    }
+  }
+  return BUNDLED_ASSETS
+}
+
 /** Whether a parsed TOML value is a table rather than an array or scalar. */
 function isTomlTable(value: TomlValueWithoutBigInt | undefined): value is TomlTableWithoutBigInt {
   return value !== undefined && typeof value === 'object' && !Array.isArray(value)
@@ -667,6 +723,7 @@ export function render(): string {
   const runtimeDeps = npm.filter(dep => dep.runtime)
   const devDeps = npm.filter(dep => !dep.runtime)
   const vendored = collectVendored()
+  const bundledAssets = collectBundledAssets()
   const python = collectPython()
   const patched = collectPatched()
   const claudeDistribution = runtimeDeps.some(
@@ -694,7 +751,7 @@ export function render(): string {
 
 DeepSeek Harness is licensed under [MIT](LICENSE). It depends on the third-party software listed below. Each project remains under its own license; nothing in this file changes those terms.
 
-This file lists **direct** dependencies declared by the workspace and the explicitly disclosed official Claude platform payload closure. It is generated from the workspace manifests by \`scripts/gen-third-party-notices.ts\`: a pre-commit hook regenerates it whenever a staged file changes one of its inputs, and \`scripts/gen-third-party-notices.spec.ts\` asserts in the test lane that the committed bytes match. Deleting a manifest runs no hook, so that case is caught by the assertion instead. Run \`pnpm run verify-third-party-notices\` for the standalone check.
+This file lists **direct** dependencies declared by the workspace, the third-party files committed into this repository, and the explicitly disclosed official Claude platform payload closure. It is generated from the workspace manifests by \`scripts/gen-third-party-notices.ts\`: a pre-commit hook regenerates it whenever a staged file changes one of its inputs, and \`scripts/gen-third-party-notices.spec.ts\` asserts in the test lane that the committed bytes match. Deleting a manifest runs no hook, so that case is caught by the assertion instead. Run \`pnpm run verify-third-party-notices\` for the standalone check.
 
 The complete npm transitive closure, including the Landlock launcher workspace, is recorded with exact pinned versions in [\`pnpm-lock.yaml\`](pnpm-lock.yaml) — inspect it with \`pnpm licenses list\`. The Python closure is recorded separately in [\`python/sdk/uv.lock\`](python/sdk/uv.lock).
 
@@ -705,6 +762,16 @@ The Cordis framework and its foundation libraries are source-vendored into this 
 | Package | Upstream name | Upstream | License |
 | --- | --- | --- | --- |
 ${vendored.map(row => `| \`${row.npmName}\` | \`${row.upstreamName}\` | [${row.upstream.replace('https://', '')}](${row.upstream}) | MIT |`).join('\n')}
+
+## Bundled assets
+
+Third-party files committed into this repository and shipped verbatim inside a package rather than resolved from a registry. Each is redistributed unmodified, and its license text sits beside it so that a copy taken out of the package carries its terms.
+
+| Asset | Version | Upstream | License | Shipped at | License text |
+| --- | --- | --- | --- | --- | --- |
+${bundledAssets.map(row => `| ${row.name} | ${row.version} | [${row.upstream.replace('https://', '')}](${row.upstream}) | ${row.license} | [\`${row.path}\`](${row.path}) | [\`${row.notice}\`](${row.notice}) |`).join('\n')}
+
+${bundledAssets.map(row => `- **${row.name}** — ${row.reason}`).join('\n')}
 
 ## Runtime npm dependencies
 

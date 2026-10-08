@@ -161,6 +161,16 @@ flowchart LR
   svc_jobs["ctx.jobs<br/>Background job registry"]
   pkg_jobs_local["jobs-local"]
   pkg_tool_jobs["tool-jobs"]
+  pkg_document_convert["document-convert"]
+  svc_documentConvert["ctx.documentConvert<br/>Document conversion route planner"]
+  pkg_document_convert_libreoffice["document-convert-libreoffice"]
+  pkg_document_convert_msoffice["document-convert-msoffice"]
+  pkg_document_convert_pandoc["document-convert-pandoc"]
+  pkg_document_convert_poppler["document-convert-poppler"]
+  pkg_tool_document_convert["tool-document-convert"]
+  pkg_tool_official_document["tool-official-document"]
+  pkg_skill_suites["skill-suites"]
+  svc_skillSuites["ctx.skillSuites<br/>Bundled skill-suite catalogue"]
   pkg_web["web"]
   svc_web["ctx.web<br/>Web access provider registry"]
   pkg_web_search_exa["web-search-exa"]
@@ -218,6 +228,11 @@ flowchart LR
   pkg_directory_picker --> svc_directoryPicker
   pkg_directory_picker_browse --> svc_directoryPicker
   pkg_directory_picker_native --> svc_directoryPicker
+  pkg_document_convert --> svc_documentConvert
+  pkg_document_convert_libreoffice --> svc_documentConvert
+  pkg_document_convert_msoffice --> svc_documentConvert
+  pkg_document_convert_pandoc --> svc_documentConvert
+  pkg_document_convert_poppler --> svc_documentConvert
   pkg_e2b --> svc_e2b
   pkg_fs --> svc_fs
   pkg_fs_e2b --> svc_fs
@@ -262,6 +277,7 @@ flowchart LR
   pkg_skill --> svc_skills
   pkg_skill_badge --> svc_skills
   pkg_skill_filesystem --> svc_skills
+  pkg_skill_suites --> svc_skillSuites
   pkg_spill --> svc_spillStore
   pkg_spill_local --> svc_spillStore
   pkg_storage --> svc_storage
@@ -313,6 +329,8 @@ flowchart LR
   svc_credentials --> pkg_llm_deepseek
   svc_credentials --> pkg_llm_pi_ai
   svc_directoryPicker --> pkg_apiproxy
+  svc_documentConvert --> pkg_tool_document_convert
+  svc_documentConvert --> pkg_tool_official_document
   svc_dynamicCordisRunner --> pkg_tool_cordis
   svc_e2b --> pkg_fs_e2b
   svc_e2b --> pkg_subprocess_e2b
@@ -363,6 +381,7 @@ flowchart LR
   svc_shell --> pkg_tool_pwsh
   svc_shellEnv --> pkg_tool_bash
   svc_shellEnv --> pkg_tool_pwsh
+  svc_skillSuites --> pkg_host_apiproxy
   svc_skills --> pkg_tool_skill
   svc_spillStore --> pkg_spill_policy
   svc_storage --> pkg_storage_domain
@@ -457,6 +476,8 @@ flowchart LR
 | `ctx.compaction` | `seam` | [`compaction`](../packages/compaction/compaction) | [`compaction-basic`](../packages/compaction/compaction-basic) | [`compaction-basic`](../packages/compaction/compaction-basic) | - | The basic backend consumes post-step pressure and request-error recovery events; there is no model-facing compact tool. |
 | `ctx.subagents` | `seam` | [`subagent`](../packages/subagent/subagent) | [`subagent-spawn-in-process`](../packages/subagent/subagent-spawn-in-process), [`subagent-fork-in-process`](../packages/subagent/subagent-fork-in-process), [`subagent-acp`](../packages/subagent/subagent-acp), [`subagent-codex`](../packages/subagent/subagent-codex), [`subagent-claude-code`](../packages/subagent/subagent-claude-code), [`subagent-dsh-sdk`](../packages/subagent/subagent-dsh-sdk) | [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-subagent-control`](../packages/subagent/tool-subagent-control), [`tool-ralph`](../packages/workflow/tool-ralph) | - | Providers implement transports; the service also owns optional Activation-based continuation orchestration, tool-subagent selects one-shot or continuable delegation, tool-subagent-control delivers follow-ups, and tool-ralph requires one fresh structured-output route. |
 | `ctx.jobs` | `seam` | [`jobs`](../packages/jobs/jobs) | [`jobs-local`](../packages/jobs/jobs-local) | [`tool-bash`](../packages/shell/tool-bash), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-jobs`](../packages/jobs/tool-jobs) | - | Producers (background bash, PTY sends, and subagent delegations) register running work; tool-jobs is the model-facing controller that reads, lists, and kills it; jobs-local is the process-local registry. |
+| `ctx.documentConvert` | `seam` | [`document-convert`](../packages/convert/document-convert) | [`document-convert-libreoffice`](../packages/convert/document-convert-libreoffice), [`document-convert-msoffice`](../packages/convert/document-convert-msoffice), [`document-convert-pandoc`](../packages/convert/document-convert-pandoc), [`document-convert-poppler`](../packages/convert/document-convert-poppler) | [`tool-document-convert`](../packages/convert/tool-document-convert), [`tool-official-document`](../packages/convert/tool-official-document) | - | Providers declare the format pairs their converter performs and what each one preserves; the seam plans a route across them, chaining steps to reach a target no single converter serves, and reports the worst fidelity among the steps it took. |
+| `ctx.skillSuites` | `core` | [`skill-suites`](../packages/skill/skill-suites) | - | [`host-apiproxy`](../packages/host/apiproxy) | - | Owns the shipped suite table, projects install state from the user skill root per call, and installs or uninstalls by byte-identity so an edited skill survives; installed skills are then discovered as ordinary filesystem skills. |
 | `ctx.web` | `seam` | [`web`](../packages/web/web) | [`web-search-exa`](../packages/web/web-search-exa), [`web-search-perplexity`](../packages/web/web-search-perplexity), [`web-search-deepseek`](../packages/web/web-search-deepseek), [`web-fetch-http`](../packages/web/web-fetch-http) | [`tool-web`](../packages/web/tool-web) | - | Search and fetch providers register into one ctx.web seam; tool-web owns the stable model-facing names. |
 | `ctx.spillStore` | `seam` | [`spill`](../packages/spill/spill) | [`spill-local`](../packages/spill/spill-local) | [`spill-policy`](../packages/spill/spill-policy) | - | The backend saves oversized tool text and returns a model-facing locator plus retrieval hint; spill-policy is the tools/post-execute consumer that decides when to spill. |
 | `ctx.directoryPicker` | `seam` | `directory-picker` | `directory-picker-native`, `directory-picker-browse` | `apiproxy` | - | Discriminated interaction capability: the native backend opens one OS chooser on the host display, the browse backend serves listing/creation primitives for the in-app browser; dual-face backends fill ui-workspace directory-flow slots from their browser halves (no wire advertisement). |

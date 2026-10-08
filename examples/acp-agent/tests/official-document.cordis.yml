@@ -1,0 +1,17 @@
+# Exercise the model-facing official-document tool through the shipped ACP app and Loader entry path.
+# The layout, the validation, the ODF packaging, the path resolution, the sandbox check, and the
+# rendering are all real. The scenario writes `odt`, which the tool produces itself with no converter,
+# because every other format goes through LibreOffice and a real LibreOffice result varies by version
+# and platform. The seam is mounted because the tool injects it, and no provider registers into it.
+- id: base
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ../cordis.yml
+    patches:
+      - insert:
+          - id: document-convert
+            name: '@deepseek-ai/dsh-document-convert'
+          - id: timeout-policy
+            name: '@deepseek-ai/dsh-tool-call-timeout-policy'
+          - id: tool-official-document
+            name: '@deepseek-ai/dsh-tool-official-document'

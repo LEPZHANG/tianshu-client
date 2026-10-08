@@ -39,6 +39,7 @@ const suiteEntrySchema = z.object({
     summary: z.string(),
   })),
   installed: z.boolean(),
+  current: z.boolean(),
 })
 
 /** skill.suiteList response value: the full catalogue with install state. */

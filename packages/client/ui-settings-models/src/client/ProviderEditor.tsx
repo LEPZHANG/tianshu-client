@@ -32,6 +32,7 @@ import {
 } from './DeepSeekModelsEditor.tsx'
 import { apiKeyFailure } from './apiKey.ts'
 import { EditorFooter } from './EditorFooter.tsx'
+import { EditorHeader } from './EditorHeader.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
 import { deriveKeyRef, messageOf, protocolChoices } from './store.ts'
 import type { en } from './locales.ts'
@@ -472,12 +473,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
       {props.hideTitle === true
         ? null
         : (
-          <div className={styles['editorHeader']}>
-            <span className={styles['editorTitle']}>{props.displayName}</span>
-            {props.provider !== props.displayName
-              ? <span className={styles['editorRoute']}>{props.provider}</span>
-              : null}
-          </div>
+          <EditorHeader
+            title={props.displayName}
+            route={props.provider === props.displayName ? undefined : props.provider}
+          />
         )}
       {layout === 'unknown'
         ? <p className={styles['advancedHint']}>{`${t('advancedHint')} (${namespace.ns})`}</p>

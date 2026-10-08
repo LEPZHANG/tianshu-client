@@ -9,22 +9,17 @@
  * The column paints the brand gradient, so all ink inside it is rebound to the
  * inverted scale in the stylesheet rather than through global theme tokens.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import clsx from 'clsx'
 import {
   IconChecklistOutline14, IconConnectorOutline16, IconMcpOutline16,
-  IconNewChatOutline16, IconPanelLeftOutline16, IconQueueOutline14,
-  IconSkillSpark16, IconSuiteOutline16, Tooltip,
+  IconQueueOutline14, IconSkillSpark16, IconSuiteOutline16,
+  SidebarBrandButton, SidebarColumn, SidebarFoot, SidebarNewSessionButton, SidebarToggleButton,
+  Tooltip, useSidebarCollapse, useSidebarScrollbars,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { TianshuWordmark } from './TianshuMarks.tsx'
 import type { TianshuNavKey, TianshuSidebarComponentProps } from './contract/slots.ts'
 import css from './TianshuSidebar.module.css'
-
-/** Wide-content unmount delay; matches the 150ms wide-content fade-out. */
-const COLLAPSE_SETTLE_MS = 150
-
-/** How long the column's scrollbars stay drawn after the pointer leaves it. */
-const SCROLLBAR_LINGER_MS = 2000
 
 /** Collapsed rail width; the frame's own constant for the closed column. */
 const RAIL_WIDTH = 56
@@ -75,31 +70,14 @@ export function TianshuSidebar({
   t,
   renderSlot,
 }: TianshuSidebarComponentProps) {
-  // Wide content stays mounted while the collapse animates, unmounts at
-  // settle, and remounts right away on expand.
-  const [settled, setSettled] = useState(collapsed)
-  useEffect(() => {
-    if (!collapsed) { setSettled(false); return }
-    const timer = window.setTimeout(() => { setSettled(true) }, COLLAPSE_SETTLE_MS)
-    return () => { window.clearTimeout(timer) }
-  }, [collapsed])
-  const wide = !collapsed || !settled
-
-  // Freeze the content at its expanded width while it fades out, so the
-  // sliding column clips it instead of reflowing it.
-  const lastWideWidth = useRef(width)
-  if (!collapsed) lastWideWidth.current = width
-
-  // Rail-in only crossfades a live collapse; a refresh straight into the
-  // collapsed state renders the rail statically.
-  const everWide = useRef(!collapsed)
-  if (!collapsed) everWide.current = true
+  const collapse = useSidebarCollapse(collapsed, width)
+  const { wide, wideWidth } = collapse
 
   // Rendered column width, published to the document so the management surface
   // can leave the sidebar uncovered without restating the frame's geometry.
   // Written here because this component is the only one the frame hands the
   // live width to; the effect retracts it so nothing survives an unmount.
-  const renderedWidth = wide ? (collapsed ? lastWideWidth.current : width) : RAIL_WIDTH
+  const renderedWidth = wide ? (collapsed ? wideWidth : width) : RAIL_WIDTH
   useEffect(() => {
     const root = document.documentElement
     root.style.setProperty(SIDEBAR_WIDTH_VAR, `${String(renderedWidth)}px`)
@@ -121,102 +99,41 @@ export function TianshuSidebar({
     if (currentSession !== undefined && activeNav !== undefined) actions.clear()
     // activeNav is read only to gate the write; the watched fact is the
     // current session, so it alone belongs in the dependency list.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSession])
 
-  // Scrollbars in the column follow the pointer: drawn while it is inside,
-  // and for SCROLLBAR_LINGER_MS after it leaves.
-  const column = useRef<HTMLDivElement>(null)
-  const [pointerInside, setPointerInside] = useState(false)
-  const lingerTimer = useRef<number | undefined>(undefined)
-  const armLinger = (): void => {
-    if (lingerTimer.current !== undefined) return
-    lingerTimer.current = window.setTimeout(() => {
-      lingerTimer.current = undefined
-      setPointerInside(false)
-    }, SCROLLBAR_LINGER_MS)
-  }
-  const cancelLinger = (): void => {
-    window.clearTimeout(lingerTimer.current)
-    lingerTimer.current = undefined
-  }
-  // Leaving is decided by the column's BOX, not DOM containment: ui-settings
-  // renders its full-viewport panel as a fixed-position DESCENDANT of this
-  // column, so a pointer moved onto that panel fires no `pointerleave` here.
-  useEffect(() => {
-    if (!pointerInside) return
-    const onMove = (event: PointerEvent): void => {
-      const rect = column.current?.getBoundingClientRect()
-      /* v8 ignore next -- the listener only exists while the column is mounted and revealed. */
-      if (rect === undefined) return
-      const inside = event.clientX >= rect.left && event.clientX < rect.right
-        && event.clientY >= rect.top && event.clientY < rect.bottom
-      if (inside) cancelLinger()
-      else armLinger()
-    }
-    document.addEventListener('pointermove', onMove)
-    return () => {
-      document.removeEventListener('pointermove', onMove)
-      cancelLinger()
-    }
-  }, [pointerInside])
+  const bars = useSidebarScrollbars()
 
+  /* jscpd:ignore-start -- deliberate parallel of the shipped dsh column: this
+     is the same shell (ui-primitives SidebarColumn and its three controls)
+     composed in the same order, because a replacement column owes its host the
+     same seats and the same collapse behavior. What differs is the stylesheet,
+     the wordmark, the absent rail mark, and the navigation block. */
   return (
-    <div
-      ref={column}
-      // Layout anchors for an embedding shell, not styling hooks: the desktop
-      // client's Windows titlebar measures the column through the root and
-      // pads it while wide. It finds them by attribute and returns silently
-      // when absent, so they are part of what this column owes a host.
-      data-dsh-sidebar-root=""
-      data-dsh-sidebar-wide={wide ? 'true' : 'false'}
-      className={clsx(
-        css.root, !wide && css.collapsed, !wide && everWide.current && css.railIn,
-        collapsed && wide && css.fading, !pointerInside && css.quietBars,
-      )}
-      style={wide ? { width: collapsed ? lastWideWidth.current : width } : undefined}
-      onPointerEnter={() => {
-        cancelLinger()
-        setPointerInside(true)
-      }}
-      onPointerLeave={() => { armLinger() }}
-    >
+    <SidebarColumn classes={css} collapsed={collapsed} width={width} collapse={collapse} bars={bars}>
       <div className={css.logoRow}>
         {/* Expanded, the wordmark doubles as a New Session shortcut. */}
         {wide && (
-          <button
-            type="button"
-            className={clsx(css.brand, css.wide)}
-            aria-label={t('session.new.label')}
-            onClick={() => { startSession() }}
-          >
+          <SidebarBrandButton classes={css} label={t('session.new.label')} onActivate={startSession}>
             <TianshuWordmark />
-          </button>
+          </SidebarBrandButton>
         )}
-        <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
-          <button
-            type="button"
-            className={clsx(css.iconButton, css.toggle)}
-            aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
-            onClick={() => { toggleSidebar() }}
-          >
-            <IconPanelLeftOutline16 className={css.panelIcon} size={wide ? 16 : 18} />
-          </button>
-        </Tooltip>
+        <SidebarToggleButton
+          classes={css}
+          label={collapsed ? t('toggle.open') : t('toggle.collapse')}
+          wide={wide}
+          onToggle={toggleSidebar}
+        />
       </div>
 
       {/* Primary action, styled as the first row of the navigation list. */}
-      <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
-        <button
-          type="button"
-          className={css.newSession}
-          aria-label={t('session.new.label')}
-          onClick={() => { startSession() }}
-        >
-          <IconNewChatOutline16 size={wide ? 16 : 18} />
-          {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>}
-        </button>
-      </Tooltip>
+      <SidebarNewSessionButton
+        classes={css}
+        label={t('session.new.label')}
+        text={t('session.new')}
+        wide={wide}
+        wideIconSize={16}
+        onStart={startSession}
+      />
 
       <nav className={css.nav} aria-label={t('nav.region')}>
         {NAV_ITEMS.map(item => (
@@ -243,14 +160,12 @@ export function TianshuSidebar({
         })}
       </div>
 
-      <div className={css.footArea}>
-        <div className={css.footerActions}>
-          {renderSlot('sidebar.footer.action', { wide })}
-        </div>
-        <div className={css.settingsArea}>
-          {renderSlot('sidebar.settings', { wide })}
-        </div>
-      </div>
-    </div>
+      <SidebarFoot
+        classes={css}
+        actions={renderSlot('sidebar.footer.action', { wide })}
+        settings={renderSlot('sidebar.settings', { wide })}
+      />
+    </SidebarColumn>
   )
+  /* jscpd:ignore-end */
 }

@@ -43,6 +43,12 @@ export interface SuiteEntry {
   readonly skills: readonly SuiteSkillEntry[]
   /** Whether the suite's files are under the user skill root. */
   readonly installed: boolean
+  /**
+   * Whether every installed skill carries the body the host currently ships. False while the suite is
+   * not installed, and false once a shipped body has changed under an existing install — the state the
+   * page turns into a reinstall action, because an outdated file is not an edited one.
+   */
+  readonly current: boolean
 }
 
 /** One skill of a suite (wire projection of the host SuiteSkillView): identity and display copy, no body. */
@@ -55,6 +61,7 @@ export interface SuiteSkillEntry {
   readonly summary: string
 }
 
+/** Skill-catalog and suite-installation calls the client makes against the host. */
 export interface SkillsApi {
   /** Lists the user-invocable skill catalog for the session's project. */
   list(request: RpcRequest<{ sessionId: SessionId }>): Promise<RpcResponse<{ skills: readonly SkillEntry[] }>>

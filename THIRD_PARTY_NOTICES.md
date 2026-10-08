@@ -5,7 +5,7 @@
 
 DeepSeek Harness is licensed under [MIT](LICENSE). It depends on the third-party software listed below. Each project remains under its own license; nothing in this file changes those terms.
 
-This file lists **direct** dependencies declared by the workspace and the explicitly disclosed official Claude platform payload closure. It is generated from the workspace manifests by `scripts/gen-third-party-notices.ts`: a pre-commit hook regenerates it whenever a staged file changes one of its inputs, and `scripts/gen-third-party-notices.spec.ts` asserts in the test lane that the committed bytes match. Deleting a manifest runs no hook, so that case is caught by the assertion instead. Run `pnpm run verify-third-party-notices` for the standalone check.
+This file lists **direct** dependencies declared by the workspace, the third-party files committed into this repository, and the explicitly disclosed official Claude platform payload closure. It is generated from the workspace manifests by `scripts/gen-third-party-notices.ts`: a pre-commit hook regenerates it whenever a staged file changes one of its inputs, and `scripts/gen-third-party-notices.spec.ts` asserts in the test lane that the committed bytes match. Deleting a manifest runs no hook, so that case is caught by the assertion instead. Run `pnpm run verify-third-party-notices` for the standalone check.
 
 The complete npm transitive closure, including the Landlock launcher workspace, is recorded with exact pinned versions in [`pnpm-lock.yaml`](pnpm-lock.yaml) — inspect it with `pnpm licenses list`. The Python closure is recorded separately in [`python/sdk/uv.lock`](python/sdk/uv.lock).
 
@@ -24,6 +24,16 @@ The Cordis framework and its foundation libraries are source-vendored into this 
 | `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
 | `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
 | `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
+
+## Bundled assets
+
+Third-party files committed into this repository and shipped verbatim inside a package rather than resolved from a registry. Each is redistributed unmodified, and its license text sits beside it so that a copy taken out of the package carries its terms.
+
+| Asset | Version | Upstream | License | Shipped at | License text |
+| --- | --- | --- | --- | --- | --- |
+| Apache ECharts | 5.6.0 | [github.com/apache/echarts](https://github.com/apache/echarts) | Apache-2.0 | [`packages/skill/skill-suites/assets/echarts/echarts.min.js`](packages/skill/skill-suites/assets/echarts/echarts.min.js) | [`packages/skill/skill-suites/assets/echarts/echarts-LICENSE.txt`](packages/skill/skill-suites/assets/echarts/echarts-LICENSE.txt) |
+
+- **Apache ECharts** — Installed beside the 数据可视化 skill so the chart pages it writes load ECharts from disk; the product ships into air-gapped deployments where a CDN reference renders a blank page.
 
 ## Runtime npm dependencies
 

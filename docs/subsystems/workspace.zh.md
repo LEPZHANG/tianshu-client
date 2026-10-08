@@ -121,6 +121,57 @@ interface Workspace {
 
 会话的 cwd 在创建时由创建者赋予，而不是由本注册表赋予——API 网关从所选工作区的 `path` 解析新会话的 cwd（回退到显式或默认 cwd），先创建会话使 cwd 落入其不可变的 [`SessionHeader`](persistence.md#sessionheader--metadata-beside-the-log)，再调用 `attachSession`，后者会把已存储的 header cwd 与工作区路径重新校验一遍。首次成功启动时，注册表仅凭已持久化的 header（`id`、`cwd`、`createdAt`——绝不读事件正文）引导历史：把规范 cwd 有效的会话按目录分组为工作区，最新的排在最前；「已初始化」标记最后写入，因此被中断的引导可以安全续跑。引导只发生这一次：没有 cwd 的历史遗留会话保持 Ungrouped，此后创建的会话只能通过 `attachSession` 加入工作区。
 
+## 集合（Collection）
+
+**集合**是一组具名、有序的会话，用来把相关的对话归档在一起。它与工作区归属是正交的：加入集合绝不改变某个会话记在哪个工作区名下，一个会话也可以同时位于任意多个集合中。集合是会话之上的一个视图，而不是会话的第二个所有者。
+
+```ts type-equiv
+/**
+ * Identifies one collection record. A generated uuid, stable across renames,
+ * so a rename never rewrites membership on the sessions it holds.
+ */
+type CollectionId = Branded<'CollectionId'>
+```
+
+`CollectionId` 是一个[品牌化 id](core.md#branded-ids)：一个生成的 uuid，在重命名后保持不变，因此重命名绝不会重写它所持有的那些会话上的成员关系。
+
+```ts type-equiv
+/**
+ * One collection: a named, ordered group of sessions used to file related
+ * conversations together across the sessions' lifetimes.
+ *
+ * Collections are orthogonal to {@link Workspace} ownership. Joining one never
+ * changes which workspace accounts a session, and a session may sit in any
+ * number of collections at once, so a collection is a view over sessions
+ * rather than a second owner of them.
+ *
+ * The view carries no mutation methods, unlike {@link Workspace}: the session
+ * management surface addresses collections by id through the workspace
+ * registry, and no consumer holds one across a write, so
+ * per-entity operations would only duplicate the registry calls.
+ */
+interface Collection {
+  /** Stable record id (generated uuid); survives rename. */
+  readonly id: CollectionId
+
+  /** Display title. Duplicates across collections are allowed. */
+  readonly title: string
+
+  /** ISO-8601 creation instant, stamped at create and never rewritten. */
+  readonly createdAt: string
+
+  /** ISO-8601 instant of the last durable mutation (create counts as one). */
+  readonly updatedAt: string
+
+  /** Member sessions in manual order: adding appends, and activity never reorders. */
+  readonly sessionIds: readonly SessionId[]
+}
+```
+
+与 `Workspace` 不同，该视图不带任何变更方法。会话管理界面通过注册表按 id 寻址集合 —— `createCollection`、`renameCollection`、`deleteCollection`、`addSessionToCollection`、`removeSessionFromCollection`（[签名](#ctxworkspaceregistry--workspaceregistry)）—— 且没有任何消费方会跨越一次写入持有 `Collection`，因此按实体提供的操作只会与这些注册表调用重复。
+
+成员顺序由人工决定：新增即追加，会话活动绝不重排集合。允许出现重复的展示标题，因为集合是面向用户的标签，而不是一个标识。
+
 ## 消费方
 
 [dsh-host-apiproxy](../../packages/host/apiproxy) 是产品消费方：它经 `ctx.workspaceRegistry` 向 GUI 客户端提供工作区的 CRUD，并执行上文「先建会话再 attach」的流程。[dsh-agent-instructions](../../packages/context/agent-instructions) 尽管名字如此，却**不是**消费方：它在 agent 自己的 cwd 下发现 AGENTS.md 风格的指令文件，从不触碰 `ctx.workspaceRegistry`——两者共用的这个词指的是用户的工作目录，而非本注册表的实体。
@@ -213,6 +264,81 @@ insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly Workspac
 archiveSession(sessionId: SessionId): Promise<void>
 
 /**
+ * Unarchive one session, the exact inverse of {@link archiveSession}. An id
+ * that is not archived resolves without writing. Workspace accounting is
+ * untouched, so the session reappears in the position it held before
+ * archiving.
+ * @param sessionId - The session to restore to the visible set.
+ * @returns resolution after durability.
+ */
+unarchiveSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Create an empty collection.
+ * @param title - Display title; must not be blank. Duplicate titles are
+ *   allowed, since the id is the reference.
+ * @returns the new collection.
+ */
+createCollection(title: string): Promise<Collection>
+
+/**
+ * Replace one collection's display title.
+ * @param collectionId - Target collection.
+ * @param title - New title; must not be blank.
+ * @returns resolution after durability.
+ */
+renameCollection(collectionId: CollectionId, title: string): Promise<void>
+
+/**
+ * Delete one collection. Member sessions are untouched: they simply stop
+ * being filed under it, keeping every other membership and their workspace
+ * accounting.
+ * @param collectionId - Target collection.
+ * @returns resolution after durability.
+ */
+deleteCollection(collectionId: CollectionId): Promise<void>
+
+/**
+ * File one session under a collection, appended at the end of its manual
+ * order; activity never reorders. Already a member resolves without writing.
+ * @param collectionId - Target collection.
+ * @param sessionId - Session to file.
+ * @returns resolution after durability.
+ */
+addSessionToCollection(collectionId: CollectionId, sessionId: SessionId): Promise<void>
+
+/**
+ * Take one session out of a collection. Idempotent, and deliberately no
+ * existence check: removing a reference cannot create a dangling one, so an
+ * unresolvable id simply was never a member.
+ * @param collectionId - Target collection.
+ * @param sessionId - Session to unfile.
+ * @returns resolution after durability.
+ */
+removeSessionFromCollection(collectionId: CollectionId, sessionId: SessionId): Promise<void>
+
+/**
+ * Soft-delete one session: hide it from every grouping surface while its
+ * stored log stays on disk, so {@link restoreSession} can bring it back.
+ * The session leaves the archive set and every collection account — neither
+ * is a fact about a deleted session — but keeps its workspace `sessionIds`
+ * slot, so restoring returns it to the position it held. Idempotent.
+ * @param sessionId - Session to delete.
+ * @returns resolution after durability.
+ */
+deleteSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Restore a soft-deleted session to the visible set. It comes back
+ * unarchived and in no collection, because deletion dropped both; its
+ * workspace position was never lost. An id that is not deleted resolves
+ * without writing.
+ * @param sessionId - Session to restore.
+ * @returns resolution after durability.
+ */
+restoreSession(sessionId: SessionId): Promise<void>
+
+/**
  * Resolve by canonical directory path without creating or mutating a
  * workspace. A missing path rejects during `realpath`; an existing unowned
  * directory returns `undefined`.
@@ -224,5 +350,5 @@ async resolveByPath(path: string): Promise<Workspace | undefined>
 
 Types: [SessionId](core.md)
 
-Source: [`packages/workspace/workspace/src/index.ts:92`](../../packages/workspace/workspace/src/index.ts)
+Source: [`packages/workspace/workspace/src/index.ts:127`](../../packages/workspace/workspace/src/index.ts)
 <!-- END GENERATED cordis-surface -->

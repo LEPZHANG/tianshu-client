@@ -61,6 +61,8 @@ interface SkillProviderControl {
 }
 ```
 
+<a id="local-discovery-priority"></a>
+
 ## 本地发现优先级
 
 随附的本地提供方按 rank 顺序扫描各根目录：
@@ -234,6 +236,54 @@ interface Config {
 
 面向模型的 `skill({ name })` 工具校验 kebab-case 名称，在与调用策略无关的目录中查找摘要，并在加载前通过 `isModelInvocable` 拒绝无权访问的 skill；随后它根据调用方 agent 的 cwd 重新读取完整定义，并在返回内容前再次检查策略。该工具将无法解析的 skill 报告为未知或已不可用，并返回包含 `<skill_content name="...">`、`<skill_resources>` 和 `<skill_instructions>` 的工具结果。`resourceBase` 仅按需解析显式引用的脚本、参考资料和资产；加载结果不枚举 skill 目录。因此，仅修改正文会改变后续工具调用，而不会生成目录消息或改写先前工具结果。
 
+## 技能套件（Skill suites）
+
+**套件**是产品内置、用户一步即可安装的一组技能。`ctx.skillSuites`（[签名](#ctxskillsuites--skillsuites)）读取内置目录，依据文件系统投影出每个套件的安装状态，并通过在用户技能根目录下写入或移除目录来完成安装与卸载。安装完成后，这些技能就是普通的文件系统技能 —— 它们与其他技能一样由 [`dsh-skill-filesystem`](#local-discovery-priority) 发现，本服务只负责目录本身与安装动作。
+
+`list()` 按目录顺序为每个内置套件投影一个视图。
+
+```ts type-equiv
+/** Install-state view of one suite, as the RPC projects it. */
+interface SuiteView {
+  /** Stable suite id. */
+  readonly id: string
+  /** Display title. */
+  readonly title: string
+  /** Display category tag. */
+  readonly tag: string
+  /** One-line description. */
+  readonly description: string
+  /** The skills this suite installs, in order (name, display title, and UI summary; no body). */
+  readonly skills: readonly SuiteSkillView[]
+  /** Whether the suite's files are currently under the user skill root. */
+  readonly installed: boolean
+  /**
+   * Whether every installed skill carries the body this package currently ships.
+   *
+   * False for a suite that is not installed, and false once a shipped body has changed under an
+   * existing install — which is what tells the UI to offer a reinstall instead of leaving the user
+   * with a suite whose uninstall would preserve the outdated files.
+   */
+  readonly current: boolean
+}
+```
+
+```ts type-equiv
+/** One skill of a suite as the RPC projects it: identity and display copy, without the SKILL.md body. */
+interface SuiteSkillView {
+  /** Kebab-case identifier the user references as `/name` in the composer. */
+  readonly name: string
+  /** Human-facing display name for the catalogue card. */
+  readonly title: string
+  /** One-line UI summary of what the skill produces. */
+  readonly summary: string
+}
+```
+
+该视图只承载展示文案与安装状态；`SKILL.md` 正文绝不跨越它。`installed` 与 `current` 都在每次调用时通过检查用户技能根目录现算，因此它们反映的是文件系统而非某个存储标志 —— 在应用之外手工删掉一个技能，该套件就会显示为未安装；而从本包的旧正文装出来的套件会显示为「已安装但不为最新」，页面据此渲染出重新装配操作。被用户编辑过的文件报出来完全一样，因为这里没有任何东西能区分「编辑」与「过期正文」；页面的重新装配对两者都会覆盖。
+
+两个变更操作都是幂等的，且以字节一致性为准。`install(suiteId)` 把每个内置 `SKILL.md` 写入用户根目录，若某文件当前正文的哈希已与内置正文一致则跳过，因此重复安装不会产生重写，也不会造成时间戳变动。`uninstall(suiteId)` 移除该套件的技能目录，但**只移除**那些 `SKILL.md` 仍与内置正文逐字节相同的：被编辑过的技能属于用户自己的成果，会在卸载中存活下来。若 id 不在目录中，两个调用都会抛出 `UnknownSuiteError`。
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -305,6 +355,42 @@ async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition
 ```
 
 Source: [`packages/skill/skill/src/index.ts:357`](../../packages/skill/skill/src/index.ts)
+
+<a id="ctxskillsuites--skillsuites"></a>
+
+### `ctx.skillSuites` — `SkillSuites`
+
+The skill-suite catalogue service: reads the shipped table, projects its install state from the filesystem, and installs/uninstalls by writing or removing directories under the user skill root.
+
+```ts cordis-catalog
+/**
+ * The shipped catalogue projected against the filesystem.
+ * @returns one view per built-in suite, in catalogue order.
+ */
+async list(): Promise<readonly SuiteView[]>
+
+/**
+ * Install one suite: write every bundled SKILL.md, and every file a skill
+ * declares, under the user root. Idempotent — an already-present file whose
+ * bytes match the bundled copy is left untouched (no rewrite, no timestamp
+ * churn).
+ * @param suiteId - suite to install.
+ * @throws {UnknownSuiteError} when the id is not in the catalogue.
+ */
+async install(suiteId: string): Promise<void>
+
+/**
+ * Uninstall one suite: remove its skill directories, but only those whose
+ * SKILL.md still matches the bundled body byte-for-byte — an edited skill
+ * is the user's work and survives the uninstall. Idempotent: missing
+ * directories resolve.
+ * @param suiteId - suite to uninstall.
+ * @throws {UnknownSuiteError} when the id is not in the catalogue.
+ */
+async uninstall(suiteId: string): Promise<void>
+```
+
+Source: [`packages/skill/skill-suites/src/index.ts:99`](../../packages/skill/skill-suites/src/index.ts)
 
 <a id="skills-events"></a>
 

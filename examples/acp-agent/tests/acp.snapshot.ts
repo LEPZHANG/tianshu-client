@@ -57,6 +57,8 @@ const SUBAGENT_CONTINUABLE_INHERITANCE_CONFIG = fileURLToPath(
   new URL('../subagent-continuable-inheritance.cordis.yml', import.meta.url),
 )
 const LSP_CONFIG = fileURLToPath(new URL('./lsp.cordis.yml', import.meta.url))
+const CONVERT_CONFIG = fileURLToPath(new URL('./convert-document.cordis.yml', import.meta.url))
+const OFFICIAL_DOCUMENT_CONFIG = fileURLToPath(new URL('./official-document.cordis.yml', import.meta.url))
 const WEB_CONFIG = fileURLToPath(new URL('../web.cordis.yml', import.meta.url))
 const FS_SEARCH_CONFIG = fileURLToPath(new URL('./fs-search.cordis.yml', import.meta.url))
 const PARTIAL_LANDLOCK_CONFIG = fileURLToPath(new URL('../partial-landlock.cordis.yml', import.meta.url))
@@ -290,6 +292,16 @@ const SCENARIOS: Scenario[] = [
     toolSchemasSource: 'text-turn',
   },
   { name: 'lsp-definition', hasModelTurn: true, recorded: false, pinsHeader: true, headerClass: 'lsp', configPath: LSP_CONFIG },
+  // convert_document end to end: the REAL seam, route planner, and tool run against the scenario's
+  // fixture converter, because a real LibreOffice PDF embeds timestamps and varies by version, so its
+  // byte size could not be pinned. Authored, not recorded: the transcript is a fixed two-step turn.
+  { name: 'convert-document', hasModelTurn: true, recorded: false, pinsHeader: true, headerClass: 'convert', configPath: CONVERT_CONFIG },
+  // write_official_document end to end: the REAL layout, validation, ODF packaging, path resolution, and
+  // rendering run through the shipped app. The turn writes `odt`, the one format the tool produces
+  // without a converter, so no converter fixture is needed and the file's bytes are the same everywhere.
+  // Authored, not recorded: the first call breaks § 7.2.5 so the transcript pins the clause-naming
+  // refusal beside the accepted retry, which is the exchange the model is meant to have with this tool.
+  { name: 'official-document', hasModelTurn: true, recorded: false, pinsHeader: true, headerClass: 'official-document', configPath: OFFICIAL_DOCUMENT_CONFIG },
   // web_fetch markdown rendering end to end: the overlay's loopback fixture
   // server supplies deterministic HTML (entities, a GFM table, nesting), the
   // REAL local fetch provider retrieves it, and the tool result pins the

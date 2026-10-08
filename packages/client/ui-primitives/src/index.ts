@@ -14,6 +14,18 @@ export { Menu } from './Menu.tsx'
 export type { MenuEntry, MenuItem, MenuSeparator, MenuLabel } from './Menu.tsx'
 export { useAnchoredMaxHeight } from './useAnchoredMaxHeight.ts'
 export { useDismissOnOutsidePointer } from './useDismissOnOutsidePointer.ts'
+export {
+  SIDEBAR_COLLAPSE_SETTLE_MS, SIDEBAR_SCROLLBAR_LINGER_MS,
+  useSidebarCollapse, useSidebarScrollbars,
+} from './sidebar-column.ts'
+export type { SidebarCollapseState, SidebarScrollbars } from './sidebar-column.ts'
+export {
+  SidebarBrandButton, SidebarColumn, SidebarFoot, SidebarNewSessionButton, SidebarToggleButton,
+} from './SidebarColumn.tsx'
+export type {
+  SidebarBrandButtonProps, SidebarColumnProps, SidebarFootProps, SidebarNewSessionButtonProps,
+  SidebarToggleButtonProps,
+} from './SidebarColumn.tsx'
 export { HoverCard } from './HoverCard.tsx'
 export { Modal } from './Modal.tsx'
 export { OnboardingSurface } from './OnboardingSurface.tsx'

@@ -1201,6 +1201,16 @@
       "source": "packages/skill/skill/src/index.ts"
     },
     {
+      "doc": "docs/subsystems/skills.md",
+      "symbol": "SuiteView",
+      "source": "packages/skill/skill-suites/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/skills.md",
+      "symbol": "SuiteSkillView",
+      "source": "packages/skill/skill-suites/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/compaction.md",
       "symbol": "CompactionResult",
       "source": "packages/compaction/compaction/src/types.ts"
@@ -1703,6 +1713,16 @@
     {
       "doc": "docs/subsystems/workspace.md",
       "symbol": "Workspace",
+      "source": "packages/workspace/workspace/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/workspace.md",
+      "symbol": "CollectionId",
+      "source": "packages/workspace/workspace/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/workspace.md",
+      "symbol": "Collection",
       "source": "packages/workspace/workspace/src/types.ts"
     },
     {

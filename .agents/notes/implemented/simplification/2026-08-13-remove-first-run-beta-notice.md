@@ -22,4 +22,4 @@ This decision removed the first-run notice from the assembled product rather tha
 
 ## Consequences
 
-This removal eliminated the full-viewport notice and its telemetry copy. The later restoration is intentionally a different presentation and copy revision: a shared modal precedes the inline credential dialog, the remote scenario again covers process-local acknowledgement, and the existing `welcomeNoticeVersion` field records the new copy version. The historical telemetry prompt remains absent.
+This removal eliminated the full-viewport notice and its telemetry copy. The later restoration was intentionally a different presentation and copy revision: a shared modal preceded the inline credential dialog, the remote scenario again covered process-local acknowledgement, and the existing `welcomeNoticeVersion` field recorded the new copy version. That restored notice is now [removed as well](2026-09-21-remove-first-run-testing-notice.md), on the same reasoning and keeping the same namespace registration. The historical telemetry prompt remains absent.

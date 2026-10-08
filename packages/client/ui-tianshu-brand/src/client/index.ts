@@ -37,6 +37,12 @@ export type {
 export type { TianshuSidebarKey } from './locales.ts'
 export { createNavStore } from './nav-store.ts'
 
+/**
+ * The connection RPC envelope the skill calls below read: a value on success,
+ * nothing but the flag on failure.
+ */
+type SkillRpc<T> = { result: { ok: true; value: T } } | { result: { ok: false } }
+
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Platform shell copy (sidebar controls, navigation, management pages). */
@@ -66,6 +72,10 @@ export function apply(ctx: ClientContext): void {
   // management surface renders from it.
   const nav = createNavStore()
 
+  /* jscpd:ignore-start -- the replacement column must declare the shipped
+     sidebar's registration verbatim: same slot name, same three child seats,
+     same injected callbacks. Registrants seat themselves by those names, so a
+     divergence here would silently strip the browsing region or the foot. */
   const injectProps = (): TianshuSidebarInjected => ({
     startSession: (workspaceId) => { ctx.workspaces.startSession(workspaceId) },
     toggleSidebar: () => { ctx.layout.toggleSidebar() },
@@ -84,6 +94,7 @@ export function apply(ctx: ClientContext): void {
     }, TianshuSidebar),
     'ui-tianshu-brand: sidebar registration',
   )
+  /* jscpd:ignore-end */
 
   /**
    * The management surface's action face: session lifecycle verbs plus the
@@ -92,6 +103,9 @@ export function apply(ctx: ClientContext): void {
    * beside this call (a raw `create()` here would mint a second engine
    * instance, not reach the one the components read).
    */
+  /* jscpd:ignore-start -- the session verbs repeat ui-workspace's browser face
+     because both faces are the same one-call hops onto the same services; the
+     surfaces differ, the way to reach a session does not. */
   const pagesInjected = (): TianshuPagesInjected => ({
     openSession: (sessionId) => { ctx.sessions.open(sessionId) },
     renameSession: async (sessionId, title) => {
@@ -115,11 +129,12 @@ export function apply(ctx: ClientContext): void {
     removeSessionFromCollection: async (collectionId, sessionId) => {
       await ctx.workspaces.removeSessionFromCollection(collectionId, sessionId)
     },
+    /* jscpd:ignore-end */
     listSkills: async () => {
       const current = ctx.sessions.list.getSnapshot().current
       if (current === undefined) return undefined
       const api = (ctx.get('connection') as { api: { skills: {
-        list(payload: { sessionId: SessionId }): Promise<{ result: { ok: true; value: { skills: readonly SkillEntry[] } } } | { result: { ok: false } }>
+        list(payload: { sessionId: SessionId }): Promise<SkillRpc<{ skills: readonly SkillEntry[] }>>
       } } }).api
       const response = await api.skills.list({ sessionId: current })
       if (!response.result.ok) throw new Error('skill listing failed')
@@ -127,7 +142,7 @@ export function apply(ctx: ClientContext): void {
     },
     listSuites: async () => {
       const api = (ctx.get('connection') as { api: { skills: {
-        suiteList(payload: {}): Promise<{ result: { ok: true; value: { suites: readonly SuiteEntry[] } } } | { result: { ok: false } }>
+        suiteList(payload: {}): Promise<SkillRpc<{ suites: readonly SuiteEntry[] }>>
       } } }).api
       const response = await api.skills.suiteList({})
       if (!response.result.ok) throw new Error('suite list failed')
@@ -135,7 +150,7 @@ export function apply(ctx: ClientContext): void {
     },
     installSuite: async (suiteId) => {
       const api = (ctx.get('connection') as { api: { skills: {
-        suiteInstall(payload: { suiteId: string }): Promise<{ result: { ok: true; value: { suites: readonly SuiteEntry[] } } } | { result: { ok: false } }>
+        suiteInstall(payload: { suiteId: string }): Promise<SkillRpc<{ suites: readonly SuiteEntry[] }>>
       } } }).api
       const response = await api.skills.suiteInstall({ suiteId })
       if (!response.result.ok) throw new Error('suite install failed')
@@ -143,7 +158,7 @@ export function apply(ctx: ClientContext): void {
     },
     uninstallSuite: async (suiteId) => {
       const api = (ctx.get('connection') as { api: { skills: {
-        suiteUninstall(payload: { suiteId: string }): Promise<{ result: { ok: true; value: { suites: readonly SuiteEntry[] } } } | { result: { ok: false } }>
+        suiteUninstall(payload: { suiteId: string }): Promise<SkillRpc<{ suites: readonly SuiteEntry[] }>>
       } } }).api
       const response = await api.skills.suiteUninstall({ suiteId })
       if (!response.result.ok) throw new Error('suite uninstall failed')

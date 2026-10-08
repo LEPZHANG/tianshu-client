@@ -1,7 +1,5 @@
 /** Copy dictionaries for the Models settings section. */
 
-import { WELCOME_NOTICE_COPY } from '../onboarding-copy.ts'
-
 /** English strings (the key-set source of truth for this pair). */
 export const en = {
   nav: 'Models',
@@ -122,11 +120,6 @@ export const en = {
   remoteGpuKeyHint: 'SSH key auth only for now: the host must accept your key or agent. Password-based setup arrives with key provisioning.',
   create: 'Create provider',
   creating: 'Creating\u2026',
-  welcomeTitle: WELCOME_NOTICE_COPY.en.title,
-  welcomeBody: WELCOME_NOTICE_COPY.en.body,
-  welcomeContinue: WELCOME_NOTICE_COPY.en.continueLabel,
-  welcomeError: 'The acknowledgement could not be saved. Please try again.',
-  welcomeErrorUnauthorized: 'Your session has expired. Sign in again, then continue.',
   onboardingTitle: 'Add an API key to get started',
   onboardingDescription: 'Configure the official DeepSeek provider to start building.',
   onboardingLater: 'Configure later',
@@ -258,11 +251,6 @@ export const zh: { [Key in keyof typeof en]: string } = {
   remoteGpuKeyHint: '目前仅支持 SSH 密钥认证：主机需接受你的密钥或 agent。密码方式的初始化将随密钥预置能力推出。',
   create: '创建提供方',
   creating: '创建中\u2026',
-  welcomeTitle: WELCOME_NOTICE_COPY.zh.title,
-  welcomeBody: WELCOME_NOTICE_COPY.zh.body,
-  welcomeContinue: WELCOME_NOTICE_COPY.zh.continueLabel,
-  welcomeError: '暂时无法保存确认状态，请重试。',
-  welcomeErrorUnauthorized: '登录状态已失效，请重新登录后再继续。',
   onboardingTitle: '添加一个 API Key 开始使用',
   onboardingDescription: '配置 DeepSeek 官方模型，即可开始使用。',
   onboardingLater: '稍后配置',

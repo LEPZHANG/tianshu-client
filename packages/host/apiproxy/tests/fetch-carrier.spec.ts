@@ -162,7 +162,10 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
     },
     workspace: {
       async list(request) {
-        return { rpcId: request.rpcId, result: { ok: true, value: { items: [], archivedSessionIds: [], collections: [], deletedSessionIds: [] } } }
+        return {
+          rpcId: request.rpcId,
+          result: { ok: true, value: { items: [], archivedSessionIds: [], collections: [], deletedSessionIds: [] } },
+        }
       },
       async create(request) {
         return {
@@ -466,20 +469,20 @@ describe('unary round trip (handler ⇄ client, no network)', () => {
   it('round-trips the suite lifecycle through the wire form', async () => {
     const api = fakeApi()
     const c = client(api)
-    const suites = [{ id: 'office-essentials', title: '办公五件套', tag: '通用', description: '五个技能', skills: [{ name: 'weekly-report', title: '工作周报', summary: '一句话说明' }], installed: false }]
+    const suites = [{ id: 'office-essentials', title: '办公六件套', tag: '通用', description: '六个技能', skills: [{ name: 'weekly-report', title: '工作周报', summary: '一句话说明' }], installed: false, current: false }]
     api.skills.suiteList = async request => ({ rpcId: request.rpcId, result: { ok: true, value: { suites } } })
     const listed = await c.skills.suiteList({})
     expect(listed.result).toEqual({ ok: true, value: { suites } })
 
     // The install request carries the suite id and returns the re-projected catalogue.
     let seen: string | undefined
-    api.skills.suiteInstall = async request => {
+    api.skills.suiteInstall = async (request) => {
       seen = request.payload.suiteId
-      return { rpcId: request.rpcId, result: { ok: true, value: { suites: suites.map(s => ({ ...s, installed: true })) } } }
+      return { rpcId: request.rpcId, result: { ok: true, value: { suites: suites.map(s => ({ ...s, installed: true, current: true })) } } }
     }
     const installed = await c.skills.suiteInstall({ suiteId: 'office-essentials' })
     expect(seen).toBe('office-essentials')
-    expect(installed.result).toEqual({ ok: true, value: { suites: [{ id: 'office-essentials', title: '办公五件套', tag: '通用', description: '五个技能', skills: [{ name: 'weekly-report', title: '工作周报', summary: '一句话说明' }], installed: true }] } })
+    expect(installed.result).toEqual({ ok: true, value: { suites: [{ id: 'office-essentials', title: '办公六件套', tag: '通用', description: '六个技能', skills: [{ name: 'weekly-report', title: '工作周报', summary: '一句话说明' }], installed: true, current: true }] } })
   })
 
   it('round-trips skill.list through the wire form', async () => {

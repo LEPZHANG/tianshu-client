@@ -8,6 +8,14 @@ coverage/
 build/icon.iconset/
 build/app-icon.iconset/
 build/icon-1024.png
+# The offline conversion toolkit is fetched per build machine: the binaries are hundreds of
+# megabytes, so it is not committed. The directory itself stays tracked — electron-builder's
+# extraResources needs it to exist.
+build/tools/*
+!build/tools/.gitkeep
+# The GB/T 9704—2012 typefaces ARE committed in this fork so a clone can build the 公文 output
+# without hunting down 方正/中易 fonts. They remain commercially licensed: redistributing them
+# outside this repository is the redistributor's call, not a permission this repository grants.
 .env
 .env.*
 !.env.example

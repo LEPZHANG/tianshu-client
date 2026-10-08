@@ -163,6 +163,16 @@ flowchart LR
   svc_jobs["ctx.jobs<br/>Background job registry"]
   pkg_jobs_local["jobs-local"]
   pkg_tool_jobs["tool-jobs"]
+  pkg_document_convert["document-convert"]
+  svc_documentConvert["ctx.documentConvert<br/>Document conversion route planner"]
+  pkg_document_convert_libreoffice["document-convert-libreoffice"]
+  pkg_document_convert_msoffice["document-convert-msoffice"]
+  pkg_document_convert_pandoc["document-convert-pandoc"]
+  pkg_document_convert_poppler["document-convert-poppler"]
+  pkg_tool_document_convert["tool-document-convert"]
+  pkg_tool_official_document["tool-official-document"]
+  pkg_skill_suites["skill-suites"]
+  svc_skillSuites["ctx.skillSuites<br/>Bundled skill-suite catalogue"]
   pkg_web["web"]
   svc_web["ctx.web<br/>Web access provider registry"]
   pkg_web_search_exa["web-search-exa"]
@@ -220,6 +230,11 @@ flowchart LR
   pkg_directory_picker --> svc_directoryPicker
   pkg_directory_picker_browse --> svc_directoryPicker
   pkg_directory_picker_native --> svc_directoryPicker
+  pkg_document_convert --> svc_documentConvert
+  pkg_document_convert_libreoffice --> svc_documentConvert
+  pkg_document_convert_msoffice --> svc_documentConvert
+  pkg_document_convert_pandoc --> svc_documentConvert
+  pkg_document_convert_poppler --> svc_documentConvert
   pkg_e2b --> svc_e2b
   pkg_fs --> svc_fs
   pkg_fs_e2b --> svc_fs
@@ -264,6 +279,7 @@ flowchart LR
   pkg_skill --> svc_skills
   pkg_skill_badge --> svc_skills
   pkg_skill_filesystem --> svc_skills
+  pkg_skill_suites --> svc_skillSuites
   pkg_spill --> svc_spillStore
   pkg_spill_local --> svc_spillStore
   pkg_storage --> svc_storage
@@ -315,6 +331,8 @@ flowchart LR
   svc_credentials --> pkg_llm_deepseek
   svc_credentials --> pkg_llm_pi_ai
   svc_directoryPicker --> pkg_apiproxy
+  svc_documentConvert --> pkg_tool_document_convert
+  svc_documentConvert --> pkg_tool_official_document
   svc_dynamicCordisRunner --> pkg_tool_cordis
   svc_e2b --> pkg_fs_e2b
   svc_e2b --> pkg_subprocess_e2b
@@ -365,6 +383,7 @@ flowchart LR
   svc_shell --> pkg_tool_pwsh
   svc_shellEnv --> pkg_tool_bash
   svc_shellEnv --> pkg_tool_pwsh
+  svc_skillSuites --> pkg_host_apiproxy
   svc_skills --> pkg_tool_skill
   svc_spillStore --> pkg_spill_policy
   svc_storage --> pkg_storage_domain
@@ -459,6 +478,8 @@ flowchart LR
 | `ctx.compaction` | `seam` | [`compaction`](../packages/compaction/compaction) | [`compaction-basic`](../packages/compaction/compaction-basic) | [`compaction-basic`](../packages/compaction/compaction-basic) | - | 基础后端消费步骤后的压力事件和请求错误恢复事件；不存在面向模型的压缩工具。 |
 | `ctx.subagents` | `seam` | [`subagent`](../packages/subagent/subagent) | [`subagent-spawn-in-process`](../packages/subagent/subagent-spawn-in-process), [`subagent-fork-in-process`](../packages/subagent/subagent-fork-in-process), [`subagent-acp`](../packages/subagent/subagent-acp), [`subagent-codex`](../packages/subagent/subagent-codex), [`subagent-claude-code`](../packages/subagent/subagent-claude-code), [`subagent-dsh-sdk`](../packages/subagent/subagent-dsh-sdk) | [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-subagent-control`](../packages/subagent/tool-subagent-control), [`tool-ralph`](../packages/workflow/tool-ralph) | - | 提供方实现传输；该服务还负责可选的、基于 Activation 的延续编排，tool-subagent 选择一次性或可延续委派，tool-subagent-control 传递后续消息，而 tool-ralph 要求一条全新的结构化输出路由。 |
 | `ctx.jobs` | `seam` | [`jobs`](../packages/jobs/jobs) | [`jobs-local`](../packages/jobs/jobs-local) | [`tool-bash`](../packages/shell/tool-bash), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-jobs`](../packages/jobs/tool-jobs) | - | 生产方（后台 bash、PTY 发送和 subagent 委派）登记正在运行的工作；tool-jobs 是面向模型的控制器，用于读取、列出和终止这些工作；jobs-local 是进程本地注册表。 |
+| `ctx.documentConvert` | `seam` | [`document-convert`](../packages/convert/document-convert) | [`document-convert-libreoffice`](../packages/convert/document-convert-libreoffice)、[`document-convert-msoffice`](../packages/convert/document-convert-msoffice)、[`document-convert-pandoc`](../packages/convert/document-convert-pandoc)、[`document-convert-poppler`](../packages/convert/document-convert-poppler) | [`tool-document-convert`](../packages/convert/tool-document-convert)、[`tool-official-document`](../packages/convert/tool-official-document) | - | 提供方声明自己的转换器能做哪些格式对、以及每一对保留什么；本 seam 跨它们规划一条路线，通过串联多步抵达任何单个转换器都服务不了的目标，并报告所经各步中最差的保真度。 |
+| `ctx.skillSuites` | `core` | [`skill-suites`](../packages/skill/skill-suites) | - | [`host-apiproxy`](../packages/host/apiproxy) | - | 拥有内置套件表，每次调用时依据用户技能根目录投影安装状态，并以字节一致性执行安装与卸载，使被编辑过的技能得以存活；安装后的技能随后作为普通文件系统技能被发现。 |
 | `ctx.web` | `seam` | [`web`](../packages/web/web) | [`web-search-exa`](../packages/web/web-search-exa), [`web-search-perplexity`](../packages/web/web-search-perplexity), [`web-search-deepseek`](../packages/web/web-search-deepseek), [`web-fetch-http`](../packages/web/web-fetch-http) | [`tool-web`](../packages/web/tool-web) | - | 搜索和抓取提供方注册到同一个 ctx.web seam；tool-web 负责稳定的面向模型名称。 |
 | `ctx.spillStore` | `seam` | [`spill`](../packages/spill/spill) | [`spill-local`](../packages/spill/spill-local) | [`spill-policy`](../packages/spill/spill-policy) | - | 后端保存过大的工具文本，并返回面向模型的定位信息和取回提示；spill-policy 是 tools/post-execute 消费方，负责决定何时 spill。 |
 | `ctx.directoryPicker` | `seam` | `directory-picker` | `directory-picker-native`, `directory-picker-browse` | `apiproxy` | - | 带判别标记的交互能力：原生后端在 Host 显示设备上打开一个操作系统选择器，浏览后端为应用内浏览器提供列表与创建原语；双端后端通过其浏览器侧填充 ui-workspace 目录流程的 slot（不通过协议发布）。 |

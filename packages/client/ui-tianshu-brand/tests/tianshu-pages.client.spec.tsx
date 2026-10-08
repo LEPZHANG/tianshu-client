@@ -63,6 +63,8 @@ interface SuiteSeed {
   title: string
   skillNames: string[]
   installed?: boolean
+  /** An installed suite counts as current unless a test says its shipped body changed. */
+  current?: boolean
 }
 
 const suiteView = (seed: SuiteSeed): SuiteEntry => ({
@@ -72,6 +74,7 @@ const suiteView = (seed: SuiteSeed): SuiteEntry => ({
   description: `${seed.title} description`,
   skills: seed.skillNames.map(name => ({ name, title: `${name} 技能`, summary: `${name} 说明` })),
   installed: seed.installed === true,
+  current: seed.current ?? seed.installed === true,
 })
 
 function mountPages(options: {
@@ -124,17 +127,25 @@ function mountPages(options: {
     { id: 'office-essentials', title: '办公五件套', skillNames: ['a', 'b', 'c', 'd', 'e'] },
   ]
   let installedIds = new Set(suiteSeeds.filter(seed => seed.installed).map(seed => seed.id))
+  // Seeded as installed-from-an-older-body; a reinstall is what clears the mismatch, as the host does.
+  let outdatedIds = new Set(suiteSeeds.filter(seed => seed.installed && seed.current === false).map(seed => seed.id))
+  const suiteRows = (): SuiteEntry[] => suiteSeeds.map(seed => suiteView({
+    ...seed,
+    installed: installedIds.has(seed.id),
+    current: installedIds.has(seed.id) && !outdatedIds.has(seed.id),
+  }))
   actions.listSkills = vi.fn(async () =>
     options.hostSkills === undefined ? undefined
       : options.hostSkills.map(row => ({ name: row.name, description: row.description, modelInvocable: true })))
-  actions.listSuites = vi.fn(async () => suiteSeeds.map(seed => suiteView({ ...seed, installed: installedIds.has(seed.id) })))
+  actions.listSuites = vi.fn(async () => suiteRows())
   actions.installSuite = vi.fn(async (id: string) => {
     installedIds = new Set([...installedIds, id])
-    return suiteSeeds.map(seed => suiteView({ ...seed, installed: installedIds.has(seed.id) }))
+    outdatedIds = new Set([...outdatedIds].filter(held => held !== id))
+    return suiteRows()
   })
   actions.uninstallSuite = vi.fn(async (id: string) => {
     installedIds = new Set([...installedIds].filter(held => held !== id))
-    return suiteSeeds.map(seed => suiteView({ ...seed, installed: installedIds.has(seed.id) }))
+    return suiteRows()
   })
   Object.assign(actions, options.overrides ?? {})
 
@@ -378,6 +389,21 @@ describe('TianshuPages suites', () => {
     expect(screen.queryByRole('button', { name: 'Install' })).toBeNull()
   })
 
+  it('offers a reinstall for an installed suite whose shipped body changed, and installs through it', async () => {
+    const { actions } = mountPages({
+      active: 'suites',
+      suites: [{
+        id: 'office-essentials', title: '办公五件套', skillNames: ['a'], installed: true, current: false,
+      }],
+    })
+    await screen.findByText('办公五件套')
+    expect(screen.getByText('Update available')).toBeTruthy()
+    expect(screen.queryByText('Installed')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Reinstall' }))
+    await screen.findByText('Installed')
+    expect(actions.installSuite).toHaveBeenCalledWith('office-essentials')
+  })
+
   it('uninstalls through the injected action and returns to installable', async () => {
     const { actions } = mountPages({
       active: 'suites',
@@ -391,17 +417,18 @@ describe('TianshuPages suites', () => {
 })
 
 describe('TianshuPages skills', () => {
-  it('lists the four catalogued skills with counts, categories, and calling names', () => {
+  it('lists the five catalogued skills with counts, categories, and calling names', () => {
     mountPages({ active: 'skills' })
     expect(screen.getByRole('heading', { level: 1, name: 'Skills' })).toBeTruthy()
-    // Four rows, each carrying its /name calling convention.
+    // Five rows, each carrying its /name calling convention.
     const rows = screen.getAllByRole('listitem')
-    expect(rows).toHaveLength(4)
+    expect(rows).toHaveLength(5)
     expect(screen.getByText('/data-visualization')).toBeTruthy()
     expect(screen.getByText('/tech-proposal')).toBeTruthy()
-    // Category chips count the catalogue: 2 documents, 2 data, 0 creative.
-    expect(screen.getByRole('button', { name: /All4/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Documents2/ })).toBeTruthy()
+    expect(screen.getByText('/format-convert')).toBeTruthy()
+    // Category chips count the catalogue: 3 documents, 2 data, 0 creative.
+    expect(screen.getByRole('button', { name: /All5/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Documents3/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Data2/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Creative0/ })).toBeTruthy()
   })
@@ -426,8 +453,9 @@ describe('TianshuPages skills', () => {
     mountPages({ active: 'skills' })
     fireEvent.click(screen.getByRole('button', { name: /Documents/ }))
     const docRows = screen.getAllByRole('listitem')
-    expect(docRows).toHaveLength(2)
-    expect(docRows.every(row => row.textContent?.includes('/weekly-report') || row.textContent?.includes('/tech-proposal'))).toBe(true)
+    expect(docRows).toHaveLength(3)
+    expect(docRows.every(row => ['/weekly-report', '/tech-proposal', '/format-convert']
+      .some(name => row.textContent?.includes(name)))).toBe(true)
 
     fireEvent.click(screen.getByRole('button', { name: /All/ }))
     const search = screen.getByLabelText('Search skills or descriptions…')
@@ -751,4 +779,3 @@ describe('TianshuPages sessions: row menu dispatch', () => {
     expect(actions.renameSession).not.toHaveBeenCalled()
   })
 })
-

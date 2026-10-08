@@ -479,6 +479,23 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Producers (background bash, PTY sends, and subagent delegations) register running work; tool-jobs is the model-facing controller that reads, lists, and kills it; jobs-local is the process-local registry.',
   },
   {
+    key: 'documentConvert',
+    pkg: 'document-convert',
+    title: 'Document conversion route planner',
+    mode: 'seam',
+    implementations: ['document-convert-libreoffice', 'document-convert-msoffice', 'document-convert-pandoc', 'document-convert-poppler'],
+    consumers: ['tool-document-convert', 'tool-official-document'],
+    note: 'Providers declare the format pairs their converter performs and what each one preserves; the seam plans a route across them, chaining steps to reach a target no single converter serves, and reports the worst fidelity among the steps it took.',
+  },
+  {
+    key: 'skillSuites',
+    pkg: 'skill-suites',
+    title: 'Bundled skill-suite catalogue',
+    mode: 'core',
+    consumers: ['host-apiproxy'],
+    note: 'Owns the shipped suite table, projects install state from the user skill root per call, and installs or uninstalls by byte-identity so an edited skill survives; installed skills are then discovered as ordinary filesystem skills.',
+  },
+  {
     key: 'web',
     pkg: 'web',
     title: 'Web access provider registry',

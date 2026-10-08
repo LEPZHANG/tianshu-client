@@ -37,6 +37,7 @@ export { Config, NS } from './config.ts'
 
 /** Effective configuration of the whole tunnel namespace. */
 export interface TunnelSection {
+  /** Configured hosts keyed by their settings key, which is also the host id. */
   hosts: Record<string, TunnelHostConfig>
 }
 
@@ -58,7 +59,7 @@ export class LlmTunnelService extends TypertRemoteService {
     // (user edit, composition base, provider detach) reconciles the live
     // tunnel set against it — starting new hosts, stopping removed ones.
     installSettingsSection(ctx, NS, Config, config, {
-      setSource: getter => { this.configGetter = getter },
+      setSource: (getter) => { this.configGetter = getter },
       onChange: () => { this.manager.syncAll(this.configGetter().hosts) },
     })
     ctx.effect(() => () => { this.manager.disposeAll() }, 'llm-tunnel: teardown')

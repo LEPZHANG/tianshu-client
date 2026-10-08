@@ -29,6 +29,7 @@ import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, St
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
 import WebRuntime from '@deepseek-ai/dsh-web'
+import DocumentConvertRuntime from '@deepseek-ai/dsh-document-convert'
 import * as WebSearchExa from '@deepseek-ai/dsh-web-search-exa'
 import * as WebFetchLocal from '@deepseek-ai/dsh-web-fetch-http'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
@@ -60,6 +61,8 @@ import * as ToolTasks from '@deepseek-ai/dsh-tool-jobs'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
+import * as ToolDocumentConvert from '@deepseek-ai/dsh-tool-document-convert'
+import * as ToolOfficialDocument from '@deepseek-ai/dsh-tool-official-document'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
@@ -533,6 +536,38 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(VmWorkflowEngine, { provider: 'mock' })
       await ctx.plugin(ToolWorkflow)
     },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-document-convert',
+    dir: 'tool-document-convert',
+    source: 'packages/convert/tool-document-convert/src/index.ts',
+    requires: ['ctx.tools', 'ctx.documentConvert', 'ctx.systemPrompt', 'ctx.fs'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // No converter provider is mounted: the schema lists this package's own closed format
+      // vocabulary and does not vary with which converters a host has installed.
+      await ctx.plugin(LocalFileSystem)
+      await ctx.plugin(DocumentConvertRuntime)
+      await ctx.plugin(ToolDocumentConvert)
+    },
+    note:
+      'convert_document advertises the seam\'s thirteen formats regardless of which converters are installed; an unreachable pair is refused at call time with both formats named.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-official-document',
+    dir: 'tool-official-document',
+    source: 'packages/convert/tool-official-document/src/index.ts',
+    requires: ['ctx.tools', 'ctx.documentConvert', 'ctx.systemPrompt', 'ctx.fs'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // No converter provider is mounted: the schema lists the formats an OpenDocument text file can
+      // reach and does not vary with which converters a host has installed.
+      await ctx.plugin(LocalFileSystem)
+      await ctx.plugin(DocumentConvertRuntime)
+      await ctx.plugin(ToolOfficialDocument)
+    },
+    note:
+      'write_official_document describes each optional argument by the GB/T 9704\u20142012 clause it satisfies, and refuses a document that breaks the standard by naming every violated clause at once.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-web',

@@ -52,7 +52,7 @@ function fakeSubprocess() {
     apply(ctx) {
       ctx.provide('subprocess', {
         spawn(spec: { argv: readonly string[] }) {
-          let settle: (outcome: { exitCode: number | null, signal: NodeJS.Signals | null }) => void
+          let settle: (outcome: { exitCode: number | null; signal: NodeJS.Signals | null }) => void
           const child: FakeChild = {
             argv: spec.argv,
             terminated: false,
@@ -69,7 +69,7 @@ function fakeSubprocess() {
             collected: {
               stderr: { readFrom: () => ({ text: child.stderrText, nextOffset: child.stderrText.length, lossy: false }) },
             },
-            done: new Promise(resolve => { settle = resolve }),
+            done: new Promise((resolve) => { settle = resolve }),
             terminate: () => { child.terminated = true },
             waitForExit: () => Promise.resolve(true),
           }

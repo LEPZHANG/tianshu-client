@@ -1,17 +1,22 @@
 /**
  * Skill-suite host plugin: the built-in expert-suite catalogue plus its
  * install lifecycle. Installing a suite writes each bundled SKILL.md under
- * the user skill root (`$DSH_HOME/skills/<name>/SKILL.md`), where the
- * filesystem skill provider discovers it on its next scan — this plugin
- * never touches the skill registry itself, so an installed skill arrives
- * through exactly the same discovery path a hand-written one does.
+ * the user skill root (`$DSH_HOME/skills/<name>/SKILL.md`), together with any
+ * file the skill declares as an asset, where the filesystem skill provider
+ * discovers it on its next scan — this plugin never touches the skill
+ * registry itself, so an installed skill arrives through exactly the same
+ * discovery path a hand-written one does. The provider reports that
+ * directory as the skill's resource base, which is how a SKILL.md body
+ * addresses its assets by bare file name.
  *
  * Install state is file presence, not a database row: the directory under
  * the user root IS the record, so a user who deletes a folder by hand has
  * uninstalled the skill, and re-installing is idempotent. Uninstall removes
  * only directories this catalogue owns — a directory whose SKILL.md no
  * longer matches the bundled body byte-for-byte was edited after install
- * and is left alone.
+ * and is left alone. A skill installed from a body this package has since
+ * changed is reported as `outdated` rather than as an edit, so the UI can
+ * offer a reinstall instead of an uninstall that would preserve it.
  *
  * Namespace plugin (named exports, no default export).
  *
@@ -21,15 +26,19 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { BUILTIN_SUITES } from './catalogue.ts'
-import type { SuiteDefinition, SuiteView } from './types.ts'
+import type { BundledAsset, BundledSkill, SuiteDefinition, SuiteView } from './types.ts'
 
 export { BUILTIN_SUITES } from './catalogue.ts'
-export type { BundledSkill, SuiteDefinition, SuiteSkillView, SuiteView } from './types.ts'
+export type { BundledAsset, BundledSkill, SuiteDefinition, SuiteSkillView, SuiteView } from './types.ts'
+
+/** How one skill directory stands against the body this package ships. */
+type InstalledSkill = 'absent' | 'outdated' | 'current'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'skill-suites'
@@ -71,6 +80,18 @@ export class SkillRootEntryError extends Error {
 const bodyHash = (body: string): string => createHash('sha256').update(body, 'utf8').digest('hex')
 
 /**
+ * This package's root directory, which `BundledAsset.source` paths are relative to.
+ *
+ * Both the source entry (`src/index.ts`) and the bundled entry (`lib/index.js`)
+ * sit one level below the package root, so one expression serves both.
+ */
+const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
+
+/** Shipped bytes of one bundled asset. */
+const assetBytes = async (asset: BundledAsset): Promise<Buffer> =>
+  await readFile(join(PACKAGE_ROOT, asset.source))
+
+/**
  * The skill-suite catalogue service: reads the shipped table, projects its
  * install state from the filesystem, and installs/uninstalls by writing or
  * removing directories under the user skill root.
@@ -96,34 +117,56 @@ export class SkillSuites {
    */
   async list(): Promise<readonly SuiteView[]> {
     const present = await this.installedNames()
-    return BUILTIN_SUITES.map(suite => ({
-      id: suite.id,
-      title: suite.title,
-      tag: suite.tag,
-      description: suite.description,
-      skills: suite.skills.map(skill => ({ name: skill.name, title: skill.title, summary: skill.summary })),
-      installed: suite.skills.every(skill => present.has(skill.name)),
-    }))
+    const views: SuiteView[] = []
+    for (const suite of BUILTIN_SUITES) {
+      const states = await Promise.all(suite.skills.map(skill => this.skillState(skill, present)))
+      views.push({
+        id: suite.id,
+        title: suite.title,
+        tag: suite.tag,
+        description: suite.description,
+        skills: suite.skills.map(skill => ({ name: skill.name, title: skill.title, summary: skill.summary })),
+        installed: states.every(state => state !== 'absent'),
+        current: states.every(state => state === 'current'),
+      })
+    }
+    return views
   }
 
   /**
-   * Install one suite: write every bundled SKILL.md under the user root.
-   * Idempotent — an already-present skill with the bundled body is left
-   * untouched (no rewrite, no timestamp churn).
+   * Install one suite: write every bundled SKILL.md, and every file a skill
+   * declares, under the user root. Idempotent — an already-present file whose
+   * bytes match the bundled copy is left untouched (no rewrite, no timestamp
+   * churn).
    * @param suiteId - suite to install.
    * @throws {UnknownSuiteError} when the id is not in the catalogue.
    */
   async install(suiteId: string): Promise<void> {
     const suite = this.suite(suiteId)
     for (const skill of suite.skills) {
-      const file = join(this.userSkillRoot, skill.name, 'SKILL.md')
+      const dir = join(this.userSkillRoot, skill.name)
+      const file = join(dir, 'SKILL.md')
+      let bodyCurrent = false
       try {
-        if (bodyHash(await readFile(file, 'utf8')) === bodyHash(skill.body)) continue
+        bodyCurrent = bodyHash(await readFile(file, 'utf8')) === bodyHash(skill.body)
       } catch {
         // Absent (or unreadable) file: fall through and (re)write it.
       }
-      await mkdir(join(this.userSkillRoot, skill.name), { recursive: true })
-      await writeFile(file, skill.body, 'utf8')
+      if (!bodyCurrent) {
+        await mkdir(dir, { recursive: true })
+        await writeFile(file, skill.body, 'utf8')
+      }
+      for (const asset of skill.assets ?? []) {
+        const bytes = await assetBytes(asset)
+        const target = join(dir, asset.name)
+        try {
+          if ((await readFile(target)).equals(bytes)) continue
+        } catch {
+          // Absent (or unreadable) file: fall through and (re)write it.
+        }
+        await mkdir(dir, { recursive: true })
+        await writeFile(target, bytes)
+      }
     }
   }
 
@@ -155,6 +198,23 @@ export class SkillSuites {
     const found = BUILTIN_SUITES.find(suite => suite.id === suiteId)
     if (found === undefined) throw new UnknownSuiteError(suiteId)
     return found
+  }
+
+  /**
+   * One skill's directory against the body this package ships.
+   * @param skill - the bundled skill to compare against.
+   * @param present - the skill directory names the user root holds.
+   * @returns `absent` with no directory, `current` when its body is the shipped one, `outdated` otherwise.
+   */
+  private async skillState(skill: BundledSkill, present: ReadonlySet<string>): Promise<InstalledSkill> {
+    if (!present.has(skill.name)) return 'absent'
+    try {
+      const installed = await readFile(join(this.userSkillRoot, skill.name, 'SKILL.md'), 'utf8')
+      return bodyHash(installed) === bodyHash(skill.body) ? 'current' : 'outdated'
+    } catch {
+      // A directory without a readable SKILL.md holds no skill, so it is not the shipped one either.
+      return 'outdated'
+    }
   }
 
   /** Skill directory names currently under the user root. */
