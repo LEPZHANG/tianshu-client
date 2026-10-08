@@ -1,0 +1,18 @@
+# Exercise the model-facing conversion tool through the shipped ACP app and Loader entry path. The
+# seam, the route planner, and the tool are real; the converter is the scenario's fixture provider,
+# because a real LibreOffice PDF embeds timestamps and varies by version, which no pinned transcript
+# can survive.
+- id: base
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ../cordis.yml
+    patches:
+      - insert:
+          - id: document-convert
+            name: '@deepseek-ai/dsh-document-convert'
+          - id: convert-fixture-provider
+            name: './convert-fixture-provider.mjs'
+          - id: timeout-policy
+            name: '@deepseek-ai/dsh-tool-call-timeout-policy'
+          - id: tool-document-convert
+            name: '@deepseek-ai/dsh-tool-document-convert'

@@ -38,6 +38,8 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-document-convert` | `convert_document` | `ctx.tools`, `ctx.documentConvert`, `ctx.systemPrompt`, `ctx.fs` | `tool/call`, `tool/result` | - | convert_document advertises the seam's thirteen formats regardless of which converters are installed; an unreachable pair is refused at call time with both formats named. |
+| `@deepseek-ai/dsh-tool-official-document` | `write_official_document` | `ctx.tools`, `ctx.documentConvert`, `ctx.systemPrompt`, `ctx.fs` | `tool/call`, `tool/result` | - | write_official_document describes each optional argument by the GB/T 9704—2012 clause it satisfies, and refuses a document that breaks the standard by naming every violated clause at once. |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
@@ -1823,6 +1825,231 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
 ```
 
 Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
+
+<a id="deepseek-aidsh-tool-document-convert"></a>
+
+## `@deepseek-ai/dsh-tool-document-convert`
+
+### `convert_document`
+
+Convert a document, spreadsheet, or presentation file to another format, writing a new file. Supported formats: pdf, doc, docx, odt, rtf, txt, html, xls, xlsx, ods, ppt, pptx, odp. Not every pair is convertible; the tool refuses a conversion it cannot perform rather than writing an unusable file.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Path to the file to convert, resolved by the filesystem backend."
+    },
+    "to": {
+      "type": "string",
+      "description": "The format to produce.",
+      "enum": [
+        "pdf",
+        "doc",
+        "docx",
+        "odt",
+        "rtf",
+        "txt",
+        "html",
+        "xls",
+        "xlsx",
+        "ods",
+        "ppt",
+        "pptx",
+        "odp"
+      ]
+    },
+    "output_path": {
+      "type": "string",
+      "description": "Where to write the result. Defaults to the source path with the new extension."
+    },
+    "if_exists": {
+      "type": "string",
+      "description": "What to do when the output path is already taken: \"rename\" (the default) writes beside it and reports the new name, \"overwrite\" replaces it, \"refuse\" fails the call.",
+      "enum": [
+        "rename",
+        "overwrite",
+        "refuse"
+      ]
+    }
+  },
+  "required": [
+    "path",
+    "to"
+  ]
+}
+```
+
+Source: [`packages/convert/tool-document-convert/src/index.ts`](../packages/convert/tool-document-convert/src/index.ts)
+
+convert_document advertises the seam's thirteen formats regardless of which converters are installed; an unreachable pair is refused at call time with both formats named.
+
+<a id="deepseek-aidsh-tool-official-document"></a>
+
+## `@deepseek-ai/dsh-tool-official-document`
+
+### `write_official_document`
+
+Write text as a 党政机关公文 (Chinese Party and government official document) laid out to GB/T 9704—2012: A4 with a 156×225 mm 版心, 22 lines of 28 characters, 三号仿宋 body, the red separator line, the numbered 一、/（一）/1./（1） levels, and the 版记. Supply the wording; the tool sets the page. It refuses content that breaks the standard and names the clause.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "output_path": {
+      "type": "string",
+      "description": "Where to write the document, resolved by the filesystem backend."
+    },
+    "title": {
+      "type": "string",
+      "description": "标题 (§ 7.3.1), normally 发文机关+事由+文种, e.g. ×××市人民政府关于×××的通知."
+    },
+    "body": {
+      "type": "array",
+      "description": "正文 (§ 7.3.3), one entry per paragraph in order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "type": "integer",
+            "description": "Structural level 1–4. The tool supplies the 一、/（一）/1./（1） ordinal and the typeface; omit for ordinary body text."
+          },
+          "text": {
+            "type": "string",
+            "description": "The paragraph text without its ordinal."
+          }
+        },
+        "required": [
+          "text"
+        ]
+      }
+    },
+    "format": {
+      "type": "string",
+      "description": "The file format. Defaults to the output_path extension, or docx. Only odt needs no converter on the host.",
+      "enum": [
+        "docx",
+        "odt",
+        "doc",
+        "rtf",
+        "pdf",
+        "html",
+        "txt"
+      ]
+    },
+    "issuer": {
+      "type": "string",
+      "description": "发文机关标志 (§ 7.2.4), set in red at the top, e.g. ×××市人民政府文件."
+    },
+    "doc_number": {
+      "type": "string",
+      "description": "发文字号 (§ 7.2.5) as 机关代字〔年份〕序号号, e.g. 国办发〔2026〕3号. No 第, and no padded sequence number."
+    },
+    "signer": {
+      "type": "string",
+      "description": "签发人 (§ 7.2.6). Supply it only for an 上行文; it moves the 发文字号 to the left of its line, so doc_number is required with it."
+    },
+    "main_recipient": {
+      "type": "array",
+      "description": "主送机关 (§ 7.3.2), the bodies addressed. The tool joins them and adds the colon.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "copy_number": {
+      "type": "integer",
+      "description": "份号 (§ 7.2.1), this copy's serial number, laid out as six digits."
+    },
+    "secrecy": {
+      "type": "object",
+      "description": "密级和保密期限 (§ 7.2.2).",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "description": "e.g. 秘密, 机密, 绝密."
+        },
+        "period": {
+          "type": "string",
+          "description": "e.g. 5年."
+        }
+      },
+      "required": [
+        "level"
+      ]
+    },
+    "urgency": {
+      "type": "string",
+      "description": "紧急程度 (§ 7.2.3). Omit for an ordinary document.",
+      "enum": [
+        "特急",
+        "加急"
+      ]
+    },
+    "attachments": {
+      "type": "array",
+      "description": "附件说明 (§ 7.3.4), the attachment titles in order. No punctuation after a title.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "signature": {
+      "type": "string",
+      "description": "发文机关署名 (§ 7.3.5.2), centred over the 成文日期."
+    },
+    "date": {
+      "type": "string",
+      "description": "成文日期 (§ 7.3.5.4) as YYYY-MM-DD; laid out as e.g. 2026年9月1日."
+    },
+    "note": {
+      "type": "string",
+      "description": "附注 (§ 7.3.6). The tool adds the round brackets."
+    },
+    "copy_to": {
+      "type": "array",
+      "description": "抄送机关 (§ 7.4.2), in the 版记 on the last page.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "printer": {
+      "type": "object",
+      "description": "印发机关和印发日期 (§ 7.4.3), the last line of the 版记.",
+      "additionalProperties": false,
+      "properties": {
+        "agency": {
+          "type": "string",
+          "description": "The body that printed the document."
+        },
+        "date": {
+          "type": "string",
+          "description": "The printing date as YYYY-MM-DD."
+        }
+      },
+      "required": [
+        "agency",
+        "date"
+      ]
+    },
+    "overwrite": {
+      "type": "boolean",
+      "description": "Replace the output file if it already exists. Defaults to false."
+    }
+  },
+  "required": [
+    "output_path",
+    "title",
+    "body"
+  ]
+}
+```
+
+Source: [`packages/convert/tool-official-document/src/index.ts`](../packages/convert/tool-official-document/src/index.ts)
+
+write_official_document describes each optional argument by the GB/T 9704—2012 clause it satisfies, and refuses a document that breaks the standard by naming every violated clause at once.
 
 <a id="deepseek-aidsh-tool-web"></a>
 

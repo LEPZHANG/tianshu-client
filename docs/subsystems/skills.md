@@ -61,6 +61,8 @@ interface SkillProviderControl {
 }
 ```
 
+<a id="local-discovery-priority"></a>
+
 ## Local discovery priority
 
 The shipped local provider scans roots in rank order:
@@ -234,6 +236,54 @@ Before each later model step, the consumer applies exact tool visibility and dig
 
 The model-facing `skill({ name })` tool validates the kebab-case name, finds the summary in the invocation-neutral catalog, rejects it before loading unless `isModelInvocable` permits access, then rereads the complete definition for the calling agent cwd and rechecks the policy before returning content. It reports an unresolved skill as unknown or no longer available and returns a tool result containing `<skill_content name="...">`, `<skill_resources>`, and `<skill_instructions>`. `resourceBase` resolves explicitly referenced scripts, references, and assets only as needed; the loaded result does not enumerate a skill directory. Body-only edits therefore change later tool calls without producing catalog messages or rewriting earlier tool results.
 
+## Skill suites
+
+A **suite** is a bundled group of skills the product ships and the user installs with one action. `ctx.skillSuites` ([signatures](#ctxskillsuites--skillsuites)) reads the shipped catalogue, projects each suite's install state from the filesystem, and installs or uninstalls by writing or removing directories under the user skill root. Installed skills are ordinary filesystem skills afterwards — they are discovered by [`dsh-skill-filesystem`](#local-discovery-priority) like any other, and this service owns only the catalogue and the install action.
+
+`list()` projects one view per built-in suite, in catalogue order.
+
+```ts type-equiv
+/** Install-state view of one suite, as the RPC projects it. */
+interface SuiteView {
+  /** Stable suite id. */
+  readonly id: string
+  /** Display title. */
+  readonly title: string
+  /** Display category tag. */
+  readonly tag: string
+  /** One-line description. */
+  readonly description: string
+  /** The skills this suite installs, in order (name, display title, and UI summary; no body). */
+  readonly skills: readonly SuiteSkillView[]
+  /** Whether the suite's files are currently under the user skill root. */
+  readonly installed: boolean
+  /**
+   * Whether every installed skill carries the body this package currently ships.
+   *
+   * False for a suite that is not installed, and false once a shipped body has changed under an
+   * existing install — which is what tells the UI to offer a reinstall instead of leaving the user
+   * with a suite whose uninstall would preserve the outdated files.
+   */
+  readonly current: boolean
+}
+```
+
+```ts type-equiv
+/** One skill of a suite as the RPC projects it: identity and display copy, without the SKILL.md body. */
+interface SuiteSkillView {
+  /** Kebab-case identifier the user references as `/name` in the composer. */
+  readonly name: string
+  /** Human-facing display name for the catalogue card. */
+  readonly title: string
+  /** One-line UI summary of what the skill produces. */
+  readonly summary: string
+}
+```
+
+The view is display copy and install state; the `SKILL.md` body never crosses it. `installed` and `current` are both computed per call from the user skill root, so they reflect the filesystem rather than a stored flag — a skill deleted by hand outside the app shows the suite as no longer installed, and a suite installed from an older body of this package shows as installed but not current, which the page renders as a reinstall action. A file the user edited reports the same way, because nothing distinguishes an edit from a superseded body; the page's reinstall overwrites either.
+
+Both mutations are idempotent and byte-identity based. `install(suiteId)` writes each bundled `SKILL.md` under the user root, skipping a file whose current body already hashes to the bundled one, so re-installing produces no rewrite and no timestamp churn. `uninstall(suiteId)` removes a suite's skill directories, but **only** those whose `SKILL.md` still matches the bundled body byte for byte: an edited skill is the user's own work and survives the uninstall. An id outside the catalogue throws `UnknownSuiteError` from either call.
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -305,6 +355,42 @@ async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition
 ```
 
 Source: [`packages/skill/skill/src/index.ts:357`](../../packages/skill/skill/src/index.ts)
+
+<a id="ctxskillsuites--skillsuites"></a>
+
+### `ctx.skillSuites` — `SkillSuites`
+
+The skill-suite catalogue service: reads the shipped table, projects its install state from the filesystem, and installs/uninstalls by writing or removing directories under the user skill root.
+
+```ts cordis-catalog
+/**
+ * The shipped catalogue projected against the filesystem.
+ * @returns one view per built-in suite, in catalogue order.
+ */
+async list(): Promise<readonly SuiteView[]>
+
+/**
+ * Install one suite: write every bundled SKILL.md, and every file a skill
+ * declares, under the user root. Idempotent — an already-present file whose
+ * bytes match the bundled copy is left untouched (no rewrite, no timestamp
+ * churn).
+ * @param suiteId - suite to install.
+ * @throws {UnknownSuiteError} when the id is not in the catalogue.
+ */
+async install(suiteId: string): Promise<void>
+
+/**
+ * Uninstall one suite: remove its skill directories, but only those whose
+ * SKILL.md still matches the bundled body byte-for-byte — an edited skill
+ * is the user's work and survives the uninstall. Idempotent: missing
+ * directories resolve.
+ * @param suiteId - suite to uninstall.
+ * @throws {UnknownSuiteError} when the id is not in the catalogue.
+ */
+async uninstall(suiteId: string): Promise<void>
+```
+
+Source: [`packages/skill/skill-suites/src/index.ts:99`](../../packages/skill/skill-suites/src/index.ts)
 
 <a id="skills-events"></a>
 

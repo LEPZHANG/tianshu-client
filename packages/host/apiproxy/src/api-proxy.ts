@@ -100,6 +100,7 @@ import type {
 } from '@deepseek-ai/dsh-user-questions'
 import { UserQuestionError } from '@deepseek-ai/dsh-user-questions'
 import { DirectoryPickerError } from '@deepseek-ai/dsh-host-directory-picker'
+import type { DirectoryPickerCapability } from '@deepseek-ai/dsh-host-directory-picker'
 import {
   ApiRemoteSessionNotFound as SessionNotFound,
   ApiRemoteSubagentSessionOwnership as SubagentSessionOwnership,
@@ -601,6 +602,74 @@ function directoryError(error: unknown): RpcError {
     return { code: error.code, message: error.message, details: { path: error.path } }
   }
   return { code: 'internal', message: error instanceof Error ? error.message : String(error), details: {} }
+}
+
+/**
+ * Either the composed directory picker's capability of the requested kind, or the refusal to serve without it.
+ *
+ * A composition that mounts no picker and one whose picker serves a different kind both refuse with
+ * `directory-picker-unavailable`; `details.capability` names what is actually served (`none` when nothing is).
+ *
+ * @param ctx Context whose optional `directoryPicker` service is read.
+ * @param method Wire method name quoted in the refusal message.
+ * @param kind Capability the calling method needs.
+ * @returns The capability, or the refusal to return from the method.
+ */
+function requireDirectoryPicker<K extends DirectoryPickerCapability['kind']>(
+  ctx: Context,
+  method: string,
+  kind: K,
+): { ok: true; capability: Extract<DirectoryPickerCapability, { kind: K }> } | { ok: false; refusal: RpcError } {
+  const picker = ctx.get('directoryPicker')
+  if (picker === undefined) {
+    return {
+      ok: false,
+      refusal: {
+        code: 'directory-picker-unavailable',
+        message: 'the composition provides no directory picker',
+        details: { capability: 'none' },
+      },
+    }
+  }
+  const capability = picker.capability()
+  if (capability.kind !== kind) {
+    return {
+      ok: false,
+      refusal: {
+        code: 'directory-picker-unavailable',
+        message: `${method} needs the ${kind} capability; the composed picker serves "${capability.kind}"`,
+        details: { capability: capability.kind },
+      },
+    }
+  }
+  return { ok: true, capability: capability as Extract<DirectoryPickerCapability, { kind: K }> }
+}
+
+/**
+ * Apply one session-keyed workspace-registry mutation and answer with the list it changed.
+ *
+ * Only the registry's unknown-session rejection is a business code; storage and durability failures
+ * propagate as internal errors.
+ *
+ * @param request Request whose rpcId both answers echo.
+ * @param sessionId Session the mutation names, reported in the not-found refusal's details.
+ * @param mutate The registry call to apply.
+ * @param project Reads the registry list to answer with, after the mutation commits.
+ * @returns The projected list, or the `session-not-found` refusal.
+ */
+async function mutateWorkspaceSession<T>(
+  request: RpcRequest<unknown>,
+  sessionId: SessionId,
+  mutate: () => Promise<void>,
+  project: () => T,
+): Promise<RpcResponse<T>> {
+  try {
+    await mutate()
+  } catch (error: unknown) {
+    if (!(error instanceof WorkspaceUnknownSessionError)) throw error
+    return err(request, { code: 'session-not-found', message: error.message, details: { sessionId } })
+  }
+  return ok(request, project())
 }
 
 /** Resolved Agent model and project-directory defaults consumed by the API implementation. */
@@ -2896,35 +2965,21 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
 
       async archiveSession(request) {
         const { sessionId } = request.payload
-        try {
-          await ctx.workspaceRegistry.archiveSession(sessionId)
-        } catch (error: unknown) {
-          // Only the registry's unknown-session rejection is the business
-          // code; storage/durability failures propagate as internal errors.
-          if (!(error instanceof WorkspaceUnknownSessionError)) throw error
-          return err(request, {
-            code: 'session-not-found',
-            message: error.message,
-            details: { sessionId },
-          })
-        }
-        return ok(request, { archivedSessionIds: [...ctx.workspaceRegistry.archivedSessionIds] })
+        return mutateWorkspaceSession(
+          request,
+          sessionId,
+          () => ctx.workspaceRegistry.archiveSession(sessionId),
+          () => ({ archivedSessionIds: [...ctx.workspaceRegistry.archivedSessionIds] }),
+        )
       },
       async unarchiveSession(request) {
         const { sessionId } = request.payload
-        try {
-          await ctx.workspaceRegistry.unarchiveSession(sessionId)
-        } catch (error: unknown) {
-          // Only the registry's unknown-session rejection is the business
-          // code; storage/durability failures propagate as internal errors.
-          if (!(error instanceof WorkspaceUnknownSessionError)) throw error
-          return err(request, {
-            code: 'session-not-found',
-            message: error.message,
-            details: { sessionId },
-          })
-        }
-        return ok(request, { archivedSessionIds: [...ctx.workspaceRegistry.archivedSessionIds] })
+        return mutateWorkspaceSession(
+          request,
+          sessionId,
+          () => ctx.workspaceRegistry.unarchiveSession(sessionId),
+          () => ({ archivedSessionIds: [...ctx.workspaceRegistry.archivedSessionIds] }),
+        )
       },
 
       async createCollection(request) {
@@ -2998,33 +3053,21 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
       async deleteSession(request) {
         const { sessionId } = request.payload
-        try {
-          await ctx.workspaceRegistry.deleteSession(sessionId)
-        } catch (error: unknown) {
-          // Only the registry's unknown-session rejection is the business
-          // code; storage/durability failures propagate as internal errors.
-          if (!(error instanceof WorkspaceUnknownSessionError)) throw error
-          return err(request, {
-            code: 'session-not-found',
-            message: error.message,
-            details: { sessionId },
-          })
-        }
-        return ok(request, { deletedSessionIds: [...ctx.workspaceRegistry.deletedSessionIds] })
+        return mutateWorkspaceSession(
+          request,
+          sessionId,
+          () => ctx.workspaceRegistry.deleteSession(sessionId),
+          () => ({ deletedSessionIds: [...ctx.workspaceRegistry.deletedSessionIds] }),
+        )
       },
       async restoreSession(request) {
         const { sessionId } = request.payload
-        try {
-          await ctx.workspaceRegistry.restoreSession(sessionId)
-        } catch (error: unknown) {
-          if (!(error instanceof WorkspaceUnknownSessionError)) throw error
-          return err(request, {
-            code: 'session-not-found',
-            message: error.message,
-            details: { sessionId },
-          })
-        }
-        return ok(request, { deletedSessionIds: [...ctx.workspaceRegistry.deletedSessionIds] })
+        return mutateWorkspaceSession(
+          request,
+          sessionId,
+          () => ctx.workspaceRegistry.restoreSession(sessionId),
+          () => ({ deletedSessionIds: [...ctx.workspaceRegistry.deletedSessionIds] }),
+        )
       },
       listDeletedSessions(request) {
         return Promise.resolve(ok(request, {
@@ -3052,24 +3095,10 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
 
       async pickDirectory(request, signal) {
-        const picker = ctx.get('directoryPicker')
-        if (picker === undefined) {
-          return err(request, {
-            code: 'directory-picker-unavailable',
-            message: 'the composition provides no directory picker',
-            details: { capability: 'none' },
-          })
-        }
-        const capability = picker.capability()
-        if (capability.kind !== 'native') {
-          return err(request, {
-            code: 'directory-picker-unavailable',
-            message: `host.pickDirectory needs the native capability; the composed picker serves "${capability.kind}"`,
-            details: { capability: capability.kind },
-          })
-        }
+        const picker = requireDirectoryPicker(ctx, 'host.pickDirectory', 'native')
+        if (!picker.ok) return err(request, picker.refusal)
         try {
-          const path = await capability.pick(signal)
+          const path = await picker.capability.pick(signal)
           return ok(request, { path })
         } catch (error: unknown) {
           if (signal.aborted) {
@@ -3088,26 +3117,12 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
 
       async listDirectory(request, signal) {
-        const picker = ctx.get('directoryPicker')
-        if (picker === undefined) {
-          return err(request, {
-            code: 'directory-picker-unavailable',
-            message: 'the composition provides no directory picker',
-            details: { capability: 'none' },
-          })
-        }
-        const capability = picker.capability()
-        if (capability.kind !== 'browse') {
-          return err(request, {
-            code: 'directory-picker-unavailable',
-            message: `host.listDirectory needs the browse capability; the composed picker serves "${capability.kind}"`,
-            details: { capability: capability.kind },
-          })
-        }
+        const picker = requireDirectoryPicker(ctx, 'host.listDirectory', 'browse')
+        if (!picker.ok) return err(request, picker.refusal)
         try {
           // The carrier's signal follows the caller: a disconnect or timeout
           // stops the backend's directory scan instead of outliving it.
-          return ok(request, await capability.list(request.payload.path, signal))
+          return ok(request, await picker.capability.list(request.payload.path, signal))
         } catch (error: unknown) {
           // An abort is the caller's own timeout/disconnect, not a server
           // failure — same code pickDirectory and command.execute report.
@@ -3119,24 +3134,11 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
 
       async createDirectory(request) {
-        const picker = ctx.get('directoryPicker')
-        if (picker === undefined) {
-          return err(request, {
-            code: 'directory-picker-unavailable',
-            message: 'the composition provides no directory picker',
-            details: { capability: 'none' },
-          })
-        }
-        const capability = picker.capability()
-        if (capability.kind !== 'browse') {
-          return err(request, {
-            code: 'directory-picker-unavailable',
-            message: `host.createDirectory needs the browse capability; the composed picker serves "${capability.kind}"`,
-            details: { capability: capability.kind },
-          })
-        }
+        const picker = requireDirectoryPicker(ctx, 'host.createDirectory', 'browse')
+        if (!picker.ok) return err(request, picker.refusal)
         try {
-          return ok(request, { path: await capability.createDirectory(request.payload.path, request.payload.name) })
+          const path = await picker.capability.createDirectory(request.payload.path, request.payload.name)
+          return ok(request, { path })
         } catch (error: unknown) {
           return err(request, directoryError(error))
         }

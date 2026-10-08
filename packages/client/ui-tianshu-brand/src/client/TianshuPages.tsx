@@ -171,7 +171,6 @@ function SuitesPage(props: TianshuPagesComponentProps) {
       })
     return () => { cancelled = true }
     // The injected face is stable for the registration's lifetime.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /** Run one suite mutation, installing the echoed catalogue. */
@@ -230,7 +229,20 @@ function SuitesPage(props: TianshuPagesComponentProps) {
               {suite.installed
                 ? (
                   <>
-                    <span className={clsx(css.stateTag, css.stateTagModel)}>{t('page.suites.installed')}</span>
+                    <span className={clsx(css.stateTag, css.stateTagModel)}>
+                      {t(suite.current ? 'page.suites.installed' : 'page.suites.outdated')}
+                    </span>
+                    {/* A shipped body that changed under an install makes 卸载 a no-op: the file no
+                        longer matches the bundle, so it counts as the user's own and survives. */}
+                    {!suite.current && (
+                      <button
+                        type="button" className={clsx(css.rowActionBtn, css.rowActionPrimary)}
+                        disabled={busyId === suite.id}
+                        onClick={() => { mutate(suite.id, installSuite) }}
+                      >
+                        {t('page.suites.reinstall')}
+                      </button>
+                    )}
                     <button
                       type="button" className={css.rowActionBtn}
                       disabled={busyId === suite.id}
@@ -272,7 +284,7 @@ interface CataloguedSkill {
 }
 
 /**
- * The built-in skill catalogue — the four shipped skills, presented locally
+ * The built-in skill catalogue — the five shipped skills, presented locally
  * until the host `skill.list` channel replaces it (README Known
  * Limitations). Categories are a UI-local grouping, not a host `source`.
  */
@@ -302,8 +314,15 @@ const BUILTIN_SKILLS: readonly CataloguedSkill[] = [
     name: 'tech-proposal',
     zh: '技术方案',
     category: 'doc',
-    description: '「背景目标-选型-架构-实施-风险」五段结构，含选型对比表、Mermaid 架构图、里程碑验收标准与风险矩阵。',
-    body: '五段缺一不可：① 背景与目标（痛点带数字、目标可验收、明确“不做什么”）② 选型（≥2 候选逐项对比：成熟度/生态/熟悉度/迁移成本/许可证，表格+一句话结论）③ 架构（模块/数据流/关键接口，Mermaid graph TD，每个决策附“为什么不用显然的替代”）④ 实施（里程碑含交付物/验收标准/依赖，工期乐观正常两档）⑤ 风险（概率×影响+对策+兜底，无兜底标“需上报”）。\n\n语体：数字带单位与前提；无法核实的写“待压测确认”。成稿后五项自检清单。',
+    description: '「背景目标-选型-架构-实施-风险」五段结构，含选型对比表与里程碑验收标准，产出 Word 文件并在对话中给出正文。',
+    body: '交付两件：① Word 文件——先用 write 写成 HTML（选型对比用真 <table>），再 convert_document 转 docx，报 lossy 时说明损失；② 对话里的 Markdown 正文（架构可附 Mermaid）。\n\n五段缺一不可：① 背景与目标（痛点带数字、目标可验收、明确“不做什么”）② 选型（≥2 候选逐项对比：成熟度/生态/熟悉度/迁移成本/许可证，表格+一句话结论）③ 架构（模块/数据流/关键接口，每个决策附“为什么不用显然的替代”；Word 里用文字描述）④ 实施（里程碑含交付物/验收标准/依赖，工期乐观正常两档）⑤ 风险（概率×影响+对策+兜底，无兜底标“需上报”）。\n\n语体：数字带单位与前提；无法核实的写“待压测确认”。成稿后逐条过自检清单。',
+  },
+  {
+    name: 'format-convert',
+    zh: '格式转换',
+    category: 'doc',
+    description: '在 13 种文档/表格/演示格式之间转换文件，族内互转与导出 PDF 完整，跨族直接拒绝，转后如实报告版面是否保留。',
+    body: '调用 convert_document：path（源文件）、to（目标格式）、output_path（可选，默认同目录换扩展名）、overwrite（可选，默认 false）。\n\n能转什么：文档族（doc/docx/odt/rtf/txt/html）、表格族（xls/xlsx/ods）、演示族（ppt/pptx/odp）各族内部任意互转；三族任意格式都能导出 pdf；pdf 作为源只取得回文字；跨族（如 xlsx→pptx）不存在，工具直接拒绝，不绕路硬凑。\n\n保真度必须转述：faithful 直接说“已转换”；lossy 必须明说损失了什么（版面/样式/结构没保留）。绝不把 lossy 说成 faithful，也绝不宣称被拒绝的转换。\n\n规则：不自行改输出目录；目标已存在时先问覆盖还是换名，不默认 overwrite；多文件逐个转逐个报告；失败时原样转述原因，不猜是否缺程序。',
   },
 ]
 
@@ -342,7 +361,6 @@ function SkillsPage(props: TianshuPagesComponentProps) {
       .catch(() => { /* the local catalogue stands in */ })
     return () => { cancelled = true }
     // The injected face is stable for the registration's lifetime.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const rows: readonly CataloguedSkill[] = hostRows === undefined || hostRows.length === 0

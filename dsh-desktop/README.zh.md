@@ -125,6 +125,26 @@ npm run package:win
 
 Harness 包含架构相关原生模块。macOS ARM64、macOS Intel 与 Windows x64 应在对应平台上重新安装依赖并构建。架构专用脚本会在打包前检查当前 `platform/arch`，避免生成看似成功、实际缺少原生依赖的安装包。
 
+### 离线转换工具包（Windows x64）
+
+办公套间的格式转换与公文格式技能通过 Harness 的转换 seam 调用 LibreOffice、pandoc、poppler；每个 provider 在插件 apply 时按裸命令名解析一次 PATH。离线机器上这些二进制不存在，所有转换路线都会报不可达，因此 Windows 安装包直接把它们带上：
+
+```bash
+npm run tools:fetch    # 在有网的打包机上：下载、校验、落到 build/tools/
+npm run tools:verify    # 不联网：检查磁盘上的工具包是否完整
+```
+
+`package:win` 在构建前先跑 `tools:verify`，工具包不全就在打包机上失败，而不是发一个转换静默降级的客户端。`extraResources` 把 `build/tools/` 拷到 `resources/tools/`，`src/main/runtime/harness-runtime.ts` 把各工具目录前插进 Harness 子进程 PATH，优先于本机已装的版本。没抓取工具包的构建照样能打包运行——Harness 回落到系统 LibreOffice 探测，`npm run dev` 走的就是这条路。
+
+有两件事需要打包机自己准备：
+
+- **工具版本**。`scripts/fetch-convert-tools.mjs` 在 `WINDOWS_TOOLS` 表里为每个工具固定一个版本与 SHA-256。上游已经移走的版本会 404，并在报错里给出用于对照升级的 release 索引地址。新版本首次抓取时没有已固定的校验和：跑一次 `node scripts/fetch-convert-tools.mjs --trust-on-first-use`，把打印出的摘要粘回表里。
+- **GB/T 9704—2012 字体**。方正小标宋简体、仿宋_GB2312、楷体_GB2312 是商业授权字体，不放在本仓库。把 `.ttf` 放进 `build/fonts/`，抓取脚本会拷进随包 LibreOffice 自己的 `share/fonts/truetype`——文件名无关紧要，打包校验的是每款字体自己声明的字族——不装系统字体、不写注册表、不要管理员权限。它们在那里承担两项职责：随包 LibreOffice 用它们渲染；客户端再把该目录以 `DSH_OFFICIAL_DOCUMENT_FONTS` 交给 Harness，由后者把每款字体复制进它写出的每一份公文，于是收文方的 Word 或 WPS 无需安装任何东西就能看到正确的字形。黑体与宋体不在打包的必备清单里，因为 Windows 自带；如果该目录里也放了这两款——SimSun 以 `simsun.ttc` 形式，工具会读取——它们同样会被带进公文，这正是让 Linux 或 macOS 阅读方不再替换这两款字形的办法。缺上面三款字族时打包直接失败：LibreOffice 会替换字体，公文 PDF 于是以错误的字体排版，而每一步都报成功。确实不需要这几款字体的构建要明说——`npm run package:win:no-fonts`，或给脚本加 `--allow-missing-fonts`——这样的构建写出的公文只写字体名称，不携带字体。没有抓取过工具集的开发版则直接把 `build/fonts/` 交给 Harness；`harness.log` 会写明从哪个目录嵌入字体，或说明一个都没有。
+
+`build/tools/` 与 `build/fonts/` 都在 git 忽略之列。
+
+[BUILD-WINDOWS.zh.md](BUILD-WINDOWS.zh.md) 是 Windows 构建机的分步清单，也列出了只能在真机上做的验收项。
+
 ### 发布 CI 配置
 
 发布 workflow 在 macOS 与 Windows runner 上构建，每个构建任务都会先把 Harness

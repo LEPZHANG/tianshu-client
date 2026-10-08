@@ -121,6 +121,57 @@ Ownership truth is the record's ordered `sessionIds`, never derived from session
 
 Sessions get their cwd at create time from whoever creates them, not from this registry — the API gateway resolves a new session's cwd from the chosen workspace's `path` (falling back to an explicit or default cwd), creates the session so the cwd lands in its immutable [`SessionHeader`](persistence.md#sessionheader--metadata-beside-the-log), then calls `attachSession`, which re-validates that stored header cwd against the workspace path. On the first successful start, the registry bootstraps history from persisted headers alone (`id`, `cwd`, `createdAt` — never event bodies), grouping sessions with a valid canonical cwd into per-directory workspaces, newest first; the initialized marker is written last so an interrupted bootstrap resumes safely. The bootstrap is one-time: cwd-less legacy sessions stay Ungrouped, and sessions created afterwards join a workspace only through `attachSession`.
 
+## Collections
+
+A **collection** is a named, ordered group of sessions, used to file related conversations together. It is orthogonal to workspace ownership: joining one never changes which workspace accounts a session, and a session may sit in any number of collections at once. A collection is a view over sessions, not a second owner of them.
+
+```ts type-equiv
+/**
+ * Identifies one collection record. A generated uuid, stable across renames,
+ * so a rename never rewrites membership on the sessions it holds.
+ */
+type CollectionId = Branded<'CollectionId'>
+```
+
+`CollectionId` is a [branded id](core.md#branded-ids): a generated uuid, stable across renames, so a rename never rewrites membership on the sessions the collection holds.
+
+```ts type-equiv
+/**
+ * One collection: a named, ordered group of sessions used to file related
+ * conversations together across the sessions' lifetimes.
+ *
+ * Collections are orthogonal to {@link Workspace} ownership. Joining one never
+ * changes which workspace accounts a session, and a session may sit in any
+ * number of collections at once, so a collection is a view over sessions
+ * rather than a second owner of them.
+ *
+ * The view carries no mutation methods, unlike {@link Workspace}: the session
+ * management surface addresses collections by id through the workspace
+ * registry, and no consumer holds one across a write, so
+ * per-entity operations would only duplicate the registry calls.
+ */
+interface Collection {
+  /** Stable record id (generated uuid); survives rename. */
+  readonly id: CollectionId
+
+  /** Display title. Duplicates across collections are allowed. */
+  readonly title: string
+
+  /** ISO-8601 creation instant, stamped at create and never rewritten. */
+  readonly createdAt: string
+
+  /** ISO-8601 instant of the last durable mutation (create counts as one). */
+  readonly updatedAt: string
+
+  /** Member sessions in manual order: adding appends, and activity never reorders. */
+  readonly sessionIds: readonly SessionId[]
+}
+```
+
+Unlike `Workspace`, the view carries no mutation methods. The session-management surface addresses collections by id through the registry — `createCollection`, `renameCollection`, `deleteCollection`, `addSessionToCollection`, `removeSessionFromCollection` ([signatures](#ctxworkspaceregistry--workspaceregistry)) — and no consumer holds a `Collection` across a write, so per-entity operations would only duplicate those calls.
+
+Membership order is manual: adding appends, and session activity never reorders a collection. Duplicate display titles are allowed, because a collection is a user-facing label rather than an identity.
+
 ## Consumers
 
 [dsh-host-apiproxy](../../packages/host/apiproxy) is the product consumer: it serves workspace CRUD to GUI clients over `ctx.workspaceRegistry` and performs the create-session-then-attach flow above. [dsh-agent-instructions](../../packages/context/agent-instructions) is **not** a consumer despite the name: it discovers AGENTS.md-style instruction files under an agent's own cwd and never touches `ctx.workspaceRegistry` — the shared word refers to the user's working directory, not to this registry's entities.
@@ -213,6 +264,81 @@ insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly Workspac
 archiveSession(sessionId: SessionId): Promise<void>
 
 /**
+ * Unarchive one session, the exact inverse of {@link archiveSession}. An id
+ * that is not archived resolves without writing. Workspace accounting is
+ * untouched, so the session reappears in the position it held before
+ * archiving.
+ * @param sessionId - The session to restore to the visible set.
+ * @returns resolution after durability.
+ */
+unarchiveSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Create an empty collection.
+ * @param title - Display title; must not be blank. Duplicate titles are
+ *   allowed, since the id is the reference.
+ * @returns the new collection.
+ */
+createCollection(title: string): Promise<Collection>
+
+/**
+ * Replace one collection's display title.
+ * @param collectionId - Target collection.
+ * @param title - New title; must not be blank.
+ * @returns resolution after durability.
+ */
+renameCollection(collectionId: CollectionId, title: string): Promise<void>
+
+/**
+ * Delete one collection. Member sessions are untouched: they simply stop
+ * being filed under it, keeping every other membership and their workspace
+ * accounting.
+ * @param collectionId - Target collection.
+ * @returns resolution after durability.
+ */
+deleteCollection(collectionId: CollectionId): Promise<void>
+
+/**
+ * File one session under a collection, appended at the end of its manual
+ * order; activity never reorders. Already a member resolves without writing.
+ * @param collectionId - Target collection.
+ * @param sessionId - Session to file.
+ * @returns resolution after durability.
+ */
+addSessionToCollection(collectionId: CollectionId, sessionId: SessionId): Promise<void>
+
+/**
+ * Take one session out of a collection. Idempotent, and deliberately no
+ * existence check: removing a reference cannot create a dangling one, so an
+ * unresolvable id simply was never a member.
+ * @param collectionId - Target collection.
+ * @param sessionId - Session to unfile.
+ * @returns resolution after durability.
+ */
+removeSessionFromCollection(collectionId: CollectionId, sessionId: SessionId): Promise<void>
+
+/**
+ * Soft-delete one session: hide it from every grouping surface while its
+ * stored log stays on disk, so {@link restoreSession} can bring it back.
+ * The session leaves the archive set and every collection account — neither
+ * is a fact about a deleted session — but keeps its workspace `sessionIds`
+ * slot, so restoring returns it to the position it held. Idempotent.
+ * @param sessionId - Session to delete.
+ * @returns resolution after durability.
+ */
+deleteSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Restore a soft-deleted session to the visible set. It comes back
+ * unarchived and in no collection, because deletion dropped both; its
+ * workspace position was never lost. An id that is not deleted resolves
+ * without writing.
+ * @param sessionId - Session to restore.
+ * @returns resolution after durability.
+ */
+restoreSession(sessionId: SessionId): Promise<void>
+
+/**
  * Resolve by canonical directory path without creating or mutating a
  * workspace. A missing path rejects during `realpath`; an existing unowned
  * directory returns `undefined`.
@@ -224,5 +350,5 @@ async resolveByPath(path: string): Promise<Workspace | undefined>
 
 Types: [SessionId](core.md)
 
-Source: [`packages/workspace/workspace/src/index.ts:92`](../../packages/workspace/workspace/src/index.ts)
+Source: [`packages/workspace/workspace/src/index.ts:127`](../../packages/workspace/workspace/src/index.ts)
 <!-- END GENERATED cordis-surface -->

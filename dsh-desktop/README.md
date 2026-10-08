@@ -128,6 +128,26 @@ npm run package:win
 
 Harness includes architecture-specific native modules. Dependencies must be reinstalled and built on the matching platform for macOS ARM64, macOS Intel, and Windows x64. The architecture-specific scripts validate the current `platform/arch` before packaging to prevent artifacts that appear successful but are missing native dependencies.
 
+### Offline conversion toolkit (Windows x64)
+
+The office suite's format-conversion and official-document skills reach LibreOffice, pandoc, and poppler through the Harness conversion seam; each provider resolves a bare command name against PATH once, when its plugin applies. On an air-gapped machine none of those binaries exist and every conversion route reports itself unreachable, so the Windows installer carries them:
+
+```bash
+npm run tools:fetch    # on a build machine WITH network: download, checksum, lay out build/tools/
+npm run tools:verify    # no network: assert the toolkit on disk is complete
+```
+
+`package:win` runs `tools:verify` before building, so an incomplete toolkit fails on the build machine rather than shipping a client whose conversion silently degrades. `extraResources` copies `build/tools/` to `resources/tools/`, and `src/main/runtime/harness-runtime.ts` prepends each converter's directory to the Harness child process PATH, ahead of anything the machine itself has installed. A build that never fetched the toolkit still packages and runs — the Harness simply falls back to the system LibreOffice probe, which is what `npm run dev` does.
+
+Two things the build machine supplies by hand:
+
+- **Tool versions.** `scripts/fetch-convert-tools.mjs` pins one version and SHA-256 per tool in its `WINDOWS_TOOLS` table. A version that upstream has moved past 404s with the release index URL to bump against. The first fetch of a new version has no pinned checksum: run `node scripts/fetch-convert-tools.mjs --trust-on-first-use` once and paste the printed digests into the table.
+- **GB/T 9704—2012 typefaces.** 方正小标宋简体, 仿宋_GB2312, and 楷体_GB2312 are commercially licensed, so they are not in this repository. Put the `.ttf` files in `build/fonts/` and the fetch script copies them into the bundled LibreOffice's own `share/fonts/truetype` — the file names do not matter, because packaging checks the family each font declares — no system font install, no registry, no admin rights. They do two jobs from there: the bundled LibreOffice renders with them, and the client hands that directory to the Harness as `DSH_OFFICIAL_DOCUMENT_FONTS`, which copies each face into every official document it writes so a recipient's Word or WPS shows the right glyphs without installing anything. 黑体 and 宋体 are not part of what packaging requires, because Windows supplies them; a directory that also holds them — SimSun as `simsun.ttc`, which the tool reads — carries them into the document too, which is what stops a Linux or macOS reader substituting those two faces. Packaging fails while those three families are absent: without them LibreOffice substitutes faces and the official-document PDF is laid out in the wrong ones, with every step still reporting success. A build that genuinely does not need them says so — `npm run package:win:no-fonts`, or `--allow-missing-fonts` on the script — and its documents name the typefaces without carrying them. A development run with no fetched toolkit hands the Harness `build/fonts/` itself instead, and `harness.log` names the directory the typefaces are embedded from, or says there is none.
+
+Both `build/tools/` and `build/fonts/` are git-ignored.
+
+[BUILD-WINDOWS.md](BUILD-WINDOWS.md) is the step-by-step checklist for a Windows build machine, including the checks that can only be made on real hardware.
+
 ### Release CI setup
 
 The release workflow builds on macOS and Windows runners, and each build job

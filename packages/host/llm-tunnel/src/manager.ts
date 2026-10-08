@@ -15,7 +15,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
+import type { SubprocessHandle, SubprocessOutcome } from '@deepseek-ai/dsh-subprocess'
 import type {
   TunnelHostConfig,
   TunnelHostId,
@@ -82,7 +82,7 @@ export class TunnelManager {
    */
   statusOf(id: TunnelHostId): TunnelStatus {
     const tunnel = this.live.get(id)
-    if (tunnel === undefined) return { id, phase: 'stopped', detail: null, localBaseURL: `http://127.0.0.1:0/v1` }
+    if (tunnel === undefined) return { id, phase: 'stopped', detail: null, localBaseURL: 'http://127.0.0.1:0/v1' }
     return {
       id: tunnel.id,
       phase: tunnel.phase,
@@ -111,7 +111,7 @@ export class TunnelManager {
     if (tunnel !== undefined) return this.statusOf(id)
     // restart of an unknown id: the sync will not re-create it; report
     // stopped rather than inventing a child for an unconfigured host.
-    return { id, phase: 'stopped', detail: null, localBaseURL: `http://127.0.0.1:0/v1` }
+    return { id, phase: 'stopped', detail: null, localBaseURL: 'http://127.0.0.1:0/v1' }
   }
 
   /**
@@ -194,21 +194,16 @@ export class TunnelManager {
       })
       tunnel.handle = handle
       this.live.set(id, tunnel)
-      void handle.done.then(outcome => {
-        // Phase transitions only the owner's process facts command: a child
-        // that died while connecting failed to establish the forward; one
-        // that died after connecting reconnects only through restart/sync.
-        if (tunnel.phase === 'connecting') {
-          tunnel.phase = 'failed'
-          tunnel.detail = sshDiagnostic(handle, outcome)
-        } else {
-          tunnel.phase = 'failed'
-          tunnel.detail = sshDiagnostic(handle, outcome)
-        }
-        if (this.live.get(id) === tunnel) {
-          // Leave the entry: a `failed` row with its diagnostic is the
-          // honest projection; sync only replaces it on config change.
-        }
+      void handle.done.then((outcome) => {
+        // A child that died while connecting never established the forward;
+        // one that died after connecting reconnects only through restart/sync.
+        // Both land on `failed` with the same diagnostic — the phase it died in
+        // is already carried by `detail`.
+        //
+        // The map entry stays: a `failed` row with its diagnostic is the honest
+        // projection, and sync only replaces it on config change.
+        tunnel.phase = 'failed'
+        tunnel.detail = sshDiagnostic(handle, outcome)
       })
     } catch (error) {
       // Spawn-level failure (e.g. no ssh on PATH): report through the same
@@ -227,17 +222,17 @@ function sameTarget(a: TunnelHostConfig, b: TunnelHostConfig): boolean {
 }
 
 /** The last stderr line, or the exit facts when stderr said nothing. */
-function sshDiagnostic(handle: SubprocessHandle, outcome: { exitCode: number | null, signal: NodeJS.Signals | null }): string {
+function sshDiagnostic(handle: SubprocessHandle, outcome: { exitCode: number | null; signal: NodeJS.Signals | null }): string {
   const stderr = handle.collected.stderr?.readFrom(0).text.trim() ?? ''
-  const lastLine = stderr.length > 0 ? stderr.split('\n').pop()!.trim() : ''
+  const lastLine = (stderr.split('\n').at(-1) ?? '').trim()
   if (lastLine.length > 0) return lastLine
-  if (outcome.signal !== null) return `ssh died from ${String(outcome.signal)}`
+  if (outcome.signal !== null) return `ssh died from ${outcome.signal}`
   return `ssh exited with code ${String(outcome.exitCode)}`
 }
 
 /** A handle stub for spawn-level failures: dead on arrival, reads empty. */
 function deadHandle(): SubprocessHandle {
-  const done = Promise.resolve({ exitCode: null, signal: 'SIGKILL' as NodeJS.Signals })
+  const done: Promise<SubprocessOutcome> = Promise.resolve({ exitCode: null, signal: 'SIGKILL' })
   return {
     pid: -1,
     stdin: undefined,

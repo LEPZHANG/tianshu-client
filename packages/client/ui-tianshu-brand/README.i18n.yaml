@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-tianshu-brand/README.md
-README.md: d89fbdeb9bb15e240ccb585c463cbd4a3bca3a07
-README.zh.md: fb4e5c73d6d9a7e14a09c51c25d01a701e4572ef
+README.md: 45d2cd9577ba1104fecca23a09e8a83ec963be7f
+README.zh.md: d62bcb2190dfb7eebcffb9c56f28a34664c20196

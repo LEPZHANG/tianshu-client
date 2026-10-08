@@ -469,56 +469,56 @@ function Loaded({ injected }: { injected: ModelsSectionInjected }): ReactNode {
               // adapter already knows, or declare one it does not. Side by side
               // and equal-width so they read as siblings and line up with the
               // rows above, rather than two pills of different lengths.
-              <div className={styles['addActions']}>
-                <button
-                  type="button"
-                  className={styles['addButton']}
-                  disabled={addable.length === 0 || !state.writable}
-                  onClick={() => {
-                    const first = addable[0]
-                    /* v8 ignore next -- the button is disabled while nothing is addable */
-                    if (first === undefined) return
-                    setSavedTarget(undefined)
-                    setDeclaring(false)
-                    setAdding(true)
-                    setEditing(targetOf(first))
-                  }}
-                >
-                  {/* Same glyph as the composer's attach button. */}
-                  <IconPlusOutline16 size={14} />
-                  {t('add')}
-                </button>
-                <button
-                  type="button"
-                  className={styles['addButton']}
-                  disabled={protocols.length === 0 || !state.writable}
-                  onClick={() => {
-                    setSavedTarget(undefined)
-                    setAdding(false)
-                    setEditing(undefined)
-                    setDeclaring(true)
-                  }}
-                >
-                  <IconPlusOutline16 size={14} />
-                  {t('customAdd')}
-                </button>
-                <button
-                  type="button"
-                  className={styles['addButton']}
-                  disabled={!state.writable}
-                  onClick={() => {
-                    setSavedTarget(undefined)
-                    setAdding(false)
-                    setEditing(undefined)
-                    setDeclaring(false)
-                    setConnecting(true)
-                  }}
-                >
-                  <IconPlusOutline16 size={14} />
-                  {t('remoteGpuAdd')}
-                </button>
-              </div>
-            )}
+                <div className={styles['addActions']}>
+                  <button
+                    type="button"
+                    className={styles['addButton']}
+                    disabled={addable.length === 0 || !state.writable}
+                    onClick={() => {
+                      const first = addable[0]
+                      /* v8 ignore next -- the button is disabled while nothing is addable */
+                      if (first === undefined) return
+                      setSavedTarget(undefined)
+                      setDeclaring(false)
+                      setAdding(true)
+                      setEditing(targetOf(first))
+                    }}
+                  >
+                    {/* Same glyph as the composer's attach button. */}
+                    <IconPlusOutline16 size={14} />
+                    {t('add')}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles['addButton']}
+                    disabled={protocols.length === 0 || !state.writable}
+                    onClick={() => {
+                      setSavedTarget(undefined)
+                      setAdding(false)
+                      setEditing(undefined)
+                      setDeclaring(true)
+                    }}
+                  >
+                    <IconPlusOutline16 size={14} />
+                    {t('customAdd')}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles['addButton']}
+                    disabled={!state.writable}
+                    onClick={() => {
+                      setSavedTarget(undefined)
+                      setAdding(false)
+                      setEditing(undefined)
+                      setDeclaring(false)
+                      setConnecting(true)
+                    }}
+                  >
+                    <IconPlusOutline16 size={14} />
+                    {t('remoteGpuAdd')}
+                  </button>
+                </div>
+              )}
       </div>
       <Modal
         open={deleteTarget !== undefined}

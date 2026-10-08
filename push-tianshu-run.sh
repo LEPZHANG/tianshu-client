@@ -2,20 +2,22 @@
 # 一键推送到 https://github.com/LEPZHANG/tianshu-client.git 的包装脚本。
 #
 # 用法：
-#   bash push-tianshu-run.sh
+#   bash push-tianshu-run.sh [分支名]          # 分支名默认 demo0928
+#   FORCE=1 bash push-tianshu-run.sh demo0928  # 覆盖远端该分支已有的历史
 #
 # 它做三件事：
 #   1. 设置本机代理（直连 GitHub 不通，走 verge-mihomo 的 7897）
 #   2. 安全地提示你粘贴 GitHub token（不回显、不写文件、不进 shell 历史）
 #   3. 调用已有的 push-tianshu.sh（内含安全自检：凭据文件/node_modules/.env 不会被推）
 #
-# token 只存在于本进程内存，脚本结束即释放。
-# 但注意：push-tianshu.sh 第 167 行会把 token 拼进临时仓库的 remote URL，
-# 推送成功后请到 GitHub 撤销并重建该 token（脚本末尾也会提醒）。
+# token 只存在于本进程内存，脚本结束即释放；push-tianshu.sh 经 GIT_ASKPASS
+# 取用它，不写进 .git/config、也不出现在进程参数里。
 
 set -euo pipefail
 
 cd "$(dirname "$0")"
+
+BRANCH="${1:-demo0928}"
 
 if [ ! -f push-tianshu.sh ]; then
   echo "错误：当前目录找不到 push-tianshu.sh" >&2
@@ -62,10 +64,16 @@ export GIT_CONFIG_KEY_2=http.lowSpeedLimit GIT_CONFIG_VALUE_2=0
 export GIT_CONFIG_KEY_3=http.lowSpeedTime  GIT_CONFIG_VALUE_3=999999
 
 # ---- 3. 调用真正的推送脚本（失败自动重试至多 3 次）--------------------------
-echo "==> 开始执行 push-tianshu.sh"
+echo "==> 开始执行 push-tianshu.sh（分支 $BRANCH）"
 attempt=1
-until bash push-tianshu.sh; do
+until bash push-tianshu.sh "$BRANCH"; do
   status=$?
+  # 2 = 安全自检未过，3 = 远端拒绝。重跑结果一样，而每次重跑都要再复制一遍
+  # 整棵工作树，所以只对网络类失败（1）重试。
+  if [ "$status" -eq 2 ] || [ "$status" -eq 3 ]; then
+    echo "==> 失败原因与网络无关（退出码 $status），不重试。" >&2
+    exit "$status"
+  fi
   if [ "$attempt" -ge 3 ]; then
     echo "==> 已重试 $attempt 次仍失败（退出码 $status），放弃。" >&2
     exit "$status"

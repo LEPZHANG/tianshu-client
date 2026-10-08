@@ -1,0 +1,7 @@
+{
+  "steps": [
+    { "op": "initialize" },
+    { "op": "newSession" },
+    { "op": "prompt", "text": "Use the write_official_document tool to write 通知.odt, then reply with exactly DONE. Do not describe the file." }
+  ]
+}

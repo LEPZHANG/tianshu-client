@@ -12,10 +12,10 @@ export const name = 'host-llm-tunnel-invariant'
 export const inject = ['invariants']
 
 /**
- * Invariant: every configured host has at most one live tunnel process, and a
- * tunnel reported `connected` answers on its local port. Checked in tests via
- * the service's own snapshot; the installer registers the relation so the
- * runtime reporter exercises it once per tick.
+ * No runtime invariant: a host's phase is computed from its `ssh` child's liveness at read time, so the
+ * snapshot is a projection of the children rather than a second copy that could disagree with them. Whether
+ * a connected tunnel answers on its local port is a network fact, established on demand by `probe` and
+ * pinned by `tunnel.spec.ts`, not a relation this package holds in memory for a tick to fold over.
  */
 const install: InvariantInstaller = () => {}
 

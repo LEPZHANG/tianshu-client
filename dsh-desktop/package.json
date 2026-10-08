@@ -27,17 +27,20 @@
     "dev": "electron-vite dev",
     "build": "node scripts/verify-harness-checkout.mjs && electron-vite build",
     "icons:generate": "node scripts/generate-app-icons.mjs",
+    "tools:fetch": "node scripts/fetch-convert-tools.mjs",
+    "tools:verify": "node scripts/fetch-convert-tools.mjs --verify",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "package:dir": "npm run build && electron-builder --dir",
     "package:dev:dir": "npm run build && electron-builder --dir --config electron-builder.dev.cjs",
-    "package:dev:win": "node scripts/verify-target.mjs win32 x64 && npm run build && electron-builder --win --x64 --publish never --config electron-builder.dev.cjs",
+    "package:dev:win": "node scripts/verify-target.mjs win32 x64 && node scripts/fetch-convert-tools.mjs --verify && npm run build && electron-builder --win --x64 --publish never --config electron-builder.dev.cjs",
     "package:mac": "npm run build && electron-builder --mac --publish never",
     "package:mac:arm64": "node scripts/verify-target.mjs darwin arm64 && npm run build && electron-builder --mac --arm64 --publish never",
     "package:mac:x64": "node scripts/verify-target.mjs darwin x64 && npm run build && electron-builder --mac --x64 --publish never",
-    "package:win": "node scripts/verify-target.mjs win32 x64 && npm run build && electron-builder --win --x64 --publish never"
+    "package:win": "node scripts/verify-target.mjs win32 x64 && node scripts/fetch-convert-tools.mjs --verify && npm run build && electron-builder --win --x64 --publish never",
+    "package:win:no-fonts": "node scripts/verify-target.mjs win32 x64 && node scripts/fetch-convert-tools.mjs --verify --allow-missing-fonts && npm run build && electron-builder --win --x64 --publish never"
   },
   "dependencies": {
     "@deepseek-ai/cordis-plugin-group": "1.0.1",
@@ -347,6 +350,10 @@
       {
         "from": "build/plugin-recovery.html",
         "to": "plugin-recovery.html"
+      },
+      {
+        "from": "build/tools",
+        "to": "tools"
       }
     ],
     "publish": null,

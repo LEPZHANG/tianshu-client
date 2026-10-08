@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-host-llm-tunnel
 
+English | [中文](README.zh.md)
+
 SSH port-forward tunnels that surface remote-GPU OpenAI-compatible model endpoints on localhost.
 
 One configured host becomes one `ssh -N -L <localPort>:<remoteHost>:<remotePort> user@host` child process owned by the subprocess seam, plus the tunnel's live projection over Typert RPC. Model requests themselves ride the ordinary `llm-pi-ai` provider path: a tunnel's provider row (written into the `llm-pi-ai` settings namespace at `providers.<route>` with `baseURL: http://127.0.0.1:<localPort>/v1`) is a hand-declared route like any other, so the composer's model picker, model discovery, and the Models settings UI work unchanged and never learn a tunnel exists.
@@ -30,7 +32,7 @@ The browser entry point is the Models settings page's "Add a remote GPU" card (i
 
 ## Model Experience
 
-None: the tunnel carries no prompt content and changes no model-facing inputs. The provider row it serves is the model-facing surface, and it is an ordinary `llm-pi-ai` route.
+None, as the tunnel carries no prompt content and changes no model-facing input; the provider row it serves is the model-facing surface, and it is an ordinary `llm-pi-ai` route.
 
 #### KV Cache effect
 

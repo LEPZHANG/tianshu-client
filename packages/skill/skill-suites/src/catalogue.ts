@@ -5,12 +5,26 @@
  * @module @deepseek-ai/dsh-skill-suites/src/catalogue
  */
 
-import type { SuiteDefinition } from './types.ts'
+import type { BundledAsset, SuiteDefinition } from './types.ts'
+
+/**
+ * Files the 数据可视化 skill needs beside its SKILL.md.
+ *
+ * The chart pages it writes load ECharts from the copy installed here rather
+ * than from a CDN: the product ships into air-gapped LAN deployments, where a
+ * remote `<script src>` renders a blank page and reports no error. The license
+ * file travels with the library because a generated chart folder is meant to
+ * be handed to someone else.
+ */
+const ECHARTS_ASSETS: readonly BundledAsset[] = [
+  { name: 'echarts.min.js', source: 'assets/echarts/echarts.min.js' },
+  { name: 'echarts-LICENSE.txt', source: 'assets/echarts/echarts-LICENSE.txt' },
+]
 
 /** The 数据可视化 skill body. */
 const DATA_VISUALIZATION = `---
 name: data-visualization
-description: 数据可视化技能：根据数据特征选择图表类型（趋势用折线、对比用柱状、构成用饼/环、分布用直方、关系用散点），生成 ECharts 配置或独立 HTML 单文件图表页。当用户需要画图、做图表、可视化数据、生成看板、把表格数据转成图形时使用。
+description: 数据可视化技能：根据数据特征选择图表类型（趋势用折线、对比用柱状、构成用饼/环、分布用直方、关系用散点），生成 ECharts 配置或离线可打开的 HTML 图表页。当用户需要画图、做图表、可视化数据、生成看板、把表格数据转成图形时使用。
 ---
 
 # 数据可视化
@@ -25,11 +39,13 @@ description: 数据可视化技能：根据数据特征选择图表类型（趋�
 
 ## 产出形态（按用户意图二选一）
 
-1. **独立 HTML 单文件**：引入 echarts（https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js），一个 div 容器 + 一段 option 配置。页面自带标题、图例、数据来源行；深浅色跟随 prefers-color-scheme。
+1. **HTML 图表页**：在输出目录里放三个文件——\`<图表名>.html\`，以及从本 skill 基目录复制过去的 \`echarts.min.js\` 和 \`echarts-LICENSE.txt\`。HTML 用 \`<script src="./echarts.min.js"></script>\` 引用同目录那一份，一个 div 容器 + 一段 option 配置。页面自带标题、图例、数据来源行；深浅色跟随 prefers-color-scheme。整个目录可以原样拷走或发给别人，离线双击即可打开。
 2. **ECharts option 配置块**：用户明确说"只要配置"时输出 JSON，字段名用 ECharts 原生命名，不包装代码解释。
 
 ## 必守规则
 
+- **绝不引用 CDN**（cdn.jsdelivr.net、unpkg.com 等）：目标环境没有外网，引用即白板，而且失败时页面不报错，用户只看到空白。echarts.min.js 一律从本 skill 基目录复制。
+- **字体写成能回落的栈**：\`font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif\`，或者干脆只写 \`sans-serif\`。绝不把某一款具体字体当作唯一字体：目标机器没装时整页字形被替换，字号和换行跟着变，而页面不会报错。
 - 数据先行：先复述关键数字（总量、极值、均值），再给图——图证明结论，不替代数字。
 - 每张图必须有标题和单位；坐标轴刻度从 0 起，除非差值放大有明确理由并注明。
 - 空数据、单点数据、全零数据直接说明无法作图的原因，不输出空白图。
@@ -100,16 +116,29 @@ description: 数据分析技能：对表格/CSV/JSON 数据做清洗、统计描
 /** The 技术方案 skill body. */
 const TECH_PROPOSAL = `---
 name: tech-proposal
-description: 技术方案技能：按"背景与目标-方案选型-架构设计-实施计划-风险与对策"五段结构写技术方案文档，含选型对比表、里程碑排期和量化的验收标准。当用户需要写技术方案、设计文档、选型报告、立项材料、架构评审材料时使用。
+description: 技术方案技能：按"背景与目标-方案选型-架构设计-实施计划-风险与对策"五段结构写技术方案文档，含选型对比表、里程碑排期和量化的验收标准。交付物是一份 Word 文件，同时在对话里给出正文。当用户需要写技术方案、设计文档、选型报告、立项材料、架构评审材料时使用。
 ---
 
 # 技术方案
+
+## 交付物（两件，缺一不可）
+
+**1. Word 文件。** 正式的交付物是 \`.docx\`，不是对话里的文字。分两步产出：
+
+- 先用 write 工具把全文写成 HTML：\`<h1>\` 标题、\`<h2>\` 五段、选型对比用真正的 \`<table>\`（\`<tr><th>/<td>\`）、列表用 \`<ol>/<ul>\`。表格**必须**用 \`<table>\`，不要用空格、制表符或 Markdown 的 \`|\` 语法对齐。
+- 再调 convert_document 转成 docx：\`{ path: "<方案名>.html", to: "docx" }\`，默认在同一目录写出同名 \`.docx\`。不要为此改用别的命令行工具。
+- 转换结果里 \`fidelity\` 为 \`lossy\` 时必须说明损失了什么；被工具拒绝的转换绝不宣称已完成；提示 \`renamed_from\` 时把实际写出的文件名告诉用户。
+- **架构设计一节要在 Word 里读得懂**：模块划分、数据流向、关键接口用文字配合缩进列表或表格描述。Mermaid 代码块在 Word 里只是一段文字，不要把它放进 HTML。
+
+**2. 对话里的正文。** 同一份内容再以 Markdown 完整给出一次，方便快速浏览；架构一节在这里可以附 Mermaid 图（graph TD 组件图优先）。最后给一句结论和 Word 文件路径。
+
+不要把 HTML 源码粘进对话，也不要只给文件、不给正文。
 
 ## 文档结构（五段，缺一不可）
 
 1. **背景与目标** — 现状痛点（带数字）、要达成的目标（可验收的量化表述：性能指标/覆盖率/成本）；明确"不做什么"的边界。
 2. **方案选型** — 候选至少 2 个，逐项对比：成熟度、社区/生态、团队熟悉度、迁移成本、许可证。对比用表格，结论一句话给出首选及理由，不回避落选项的优点。
-3. **架构设计** — 模块划分、数据流向、关键接口；能画图时给 Mermaid 图（graph TD 组件图优先）；核心设计决策每条附"为什么不用更显然的替代方案"。
+3. **架构设计** — 模块划分、数据流向、关键接口；核心设计决策每条附"为什么不用更显然的替代方案"。
 4. **实施计划** — 里程碑制，每个里程碑含交付物、验收标准、依赖项；总工期给乐观/正常两档。
 5. **风险与对策** — 每条风险写：概率（高/中/低）× 影响（高/中/低）+ 对策 + 兜底方案；没有兜底的风险标"需上报决策"。
 
@@ -122,8 +151,111 @@ description: 技术方案技能：按"背景与目标-方案选型-架构设计-
 
 ## 自检（成稿后逐条过）
 
+- [ ] Word 文件已写出并在对话里报出路径？ [ ] 对话里有完整正文？
+- [ ] 选型对比在 Word 里是真的表格（\`<table>\`）？ [ ] 架构在 Word 里不依赖 Mermaid 也读得懂？
 - [ ] 目标都可验收？ [ ] 选型有对比表？ [ ] 每个里程碑有验收标准？
 - [ ] 每条风险有对策？ [ ] 有明确的"不做什么"？
+`
+
+/** The 格式转换 skill body. */
+const FORMAT_CONVERT = `---
+name: format-convert
+description: 格式转换技能：用 convert_document 工具在 13 种文档、表格、演示格式之间转换文件（PDF/DOC/DOCX/ODT/RTF/TXT/HTML、XLS/XLSX/ODS、PPT/PPTX/ODP），转前判断目标是否可达，转后如实报告版面是否保留。当用户需要转格式、导出 PDF、把 Word/Excel/PPT 换成另一种格式、或把 PDF 里的内容取出来时使用。
+---
+
+# 格式转换
+
+## 工具与参数
+
+调用 convert_document：\`path\`（源文件）、\`to\`（目标格式 id）、\`output_path\`（可选，默认为源文件同目录同名换扩展名）、\`if_exists\`（可选，默认 \`rename\`）。
+
+## 什么能转、什么不能
+
+- **族内互转完整** —— 文档族（doc/docx/odt/rtf/txt/html）、表格族（xls/xlsx/ods）、演示族（ppt/pptx/odp），各族内部任意两种格式互转。
+- **导出 PDF 完整** —— 三族的任意格式都能转成 pdf。
+- **PDF 作为源有两条路，按用户要什么选** —— 转 \`doc\`/\`docx\`/\`rtf\`/\`odt\` 是版面还原，转 \`txt\` 是文字提取（拿回纯文字，图片和版面全丢）。版面还原的效果取决于机器：装了 Microsoft Word 时由 Word 重建成**真正的段落、标题、表格和图片**（结果 notes 里是 \`PDF_REFLOWED_BY_WORD\`）；没装时由 LibreOffice 导入，**图片和版面保留，但正文是一个个定位文本框**，不能接着改（notes 里是 \`PDF_IMPORTED_AS_FRAMES\`）。两条都是 lossy，按 notes 如实说明是哪一种。用户只说「转成 Word」就走版面还原。
+- **跨族不存在** —— xlsx 转不成 pptx，docx 转不成 xlsx。工具会直接拒绝这类请求；不要绕路硬凑，用户要的是能打开的文件，不是扩展名对了的空壳。
+
+## 保真度必须转述
+
+结果里的 \`fidelity\` 只有两个值，它决定你怎么向用户交代：
+
+- \`faithful\` —— 结构与版面都带过去了，直接说「已转换」即可。
+- \`lossy\` —— 内容活下来了，版面、样式或结构没有。**必须明说损失了什么**，例如「已转出 xlsx，但内容是从 PDF 抽取的文字，原表格的合并单元格与公式没有保留」。
+
+绝不把 lossy 说成 faithful，也绝不宣称一次工具拒绝掉的转换。
+
+## 必守规则
+
+- 用户没指定输出位置就用默认路径，不要自行改目录。
+- 目标文件已存在时，工具默认写到旁边（\`报告.doc\` → \`报告-1.doc\`），原文件不动，并在结果里给出 \`renamed_from\`。**看到 \`renamed_from\` 就必须把实际写出的文件名告诉用户**，否则他们会去找一个不存在的文件。用户明确要求替换原文件时才传 \`if_exists: 'overwrite'\`。
+- **只用 convert_document 做转换。**不要安装第三方库，不要写解析脚本，不要另外调命令行工具「手工再转一遍」。这个工具背后已经是 Word / LibreOffice / pandoc / poppler，临时拼出来的流程只会更慢、更差、且无法复现。
+- **用户说效果不好时，你只有三件事可做**：换 \`to\`（版面不重要就转 \`txt\` 拿干净文字）、换源文件（请用户提供原始 .docx 而不是 PDF，结构和版面才能真正带过去）、或者如实说明这条路就是上限。不要去研究文件格式本身。
+- **不要凭记忆或对话上下文重写文件内容。**即使你「记得」原文，重新写出来的也是你的版本，不是用户的文件：数字、措辞、表格都可能和原件不一致，而用户会以为那是转换结果。源文件不在了就如实说，请用户重新提供。
+- 一次转一个文件；多个文件逐个转，每个都单独报告结果。
+- 转换失败时原样转述工具给出的原因，不要替它猜测是不是缺了什么程序。
+
+## 输出格式
+
+一句话结论（转成了什么、写在哪里）→ 文件名被改过时点明实际写出的名字 → \`fidelity\` 为 \`lossy\` 时补一句损失了什么 → 多文件时逐条列出。
+`
+
+/** The 公文格式 skill body. */
+const OFFICIAL_DOCUMENT = `---
+name: official-document
+description: 公文格式技能：用 write_official_document 工具把内容写成符合 GB/T 9704—2012《党政机关公文格式》的党政机关公文（通知、通报、报告、请示、批复、函、决定、意见等），版面由工具排，文字由你拟。当用户需要写公文、发文、拟通知、起草请示/报告/批复/函、把一段话改成公文、按红头文件格式出文件时使用。
+---
+
+# 公文格式
+
+## 分工：你写字，工具排版
+
+调用 write_official_document 产出文件。版面（A4、天头 37mm、版心 156×225mm、每面 22 行每行 28 字、三号仿宋正文、二号小标宋标题、红色分隔线、层次字体、页码、版记分隔线）全部由工具按标准排，**你不要在正文里手写这些格式，也不要自己编序号**——层次序号「一、」「（一）」「1.」「（1）」由工具按 \`level\` 自动加。
+
+## 先定文种
+
+文种决定行文方向和措辞，选错了版面再对也是错的：
+
+- **通知** —— 发布、批转、转发文件，传达要求下级办理的事项（下行）。
+- **通报** —— 表彰批评、传达重要情况（下行）。
+- **报告** —— 汇报工作、反映情况、答复询问（上行，**不夹带请示事项**）。
+- **请示** —— 向上级请求指示或批准（上行，**一文一事**，必须有签发人）。
+- **批复** —— 答复下级请示（下行，标题里点明所批复的事）。
+- **函** —— 不相隶属机关之间商洽、询问、答复（平行）。
+- **决定 / 意见** —— 重要事项的决策或指导性主张。
+
+上行文（报告、请示）必须同时给 \`signer\`（签发人）和 \`doc_number\`；工具会把发文字号与签发人排在同一行。
+
+## 标题三要素
+
+\`title\` = 发文机关 + 事由 + 文种，例如「××市人民政府关于开展公文格式规范化工作的通知」。事由前用「关于」，文种前不加「的」以外的连接词。标题中除法规、规章名称加书名号外**不用标点符号**。
+
+## 参数与条款对应
+
+必填 \`output_path\`、\`title\`、\`body\`；其余按公文实际有什么给什么：
+\`copy_number\` 份号、\`secrecy\` 密级和保密期限、\`urgency\` 紧急程度（只有「特急」「加急」）、\`issuer\` 发文机关标志（红色大字，如「××市人民政府文件」）、\`doc_number\` 发文字号、\`signer\` 签发人、\`main_recipient\` 主送机关、\`attachments\` 附件说明、\`signature\` 发文机关署名、\`date\` 成文日期、\`note\` 附注、\`copy_to\` 抄送机关、\`printer\` 印发机关和印发日期。
+
+\`body\` 是段落数组，每段 \`{ level?, text }\`：\`level\` 取 1~4 表示层次，省略则是普通正文段。\`text\` 里不要写序号。第一层、第二层的标题后面可以直接接正文（「总体要求。坚持统一标准……」）：工具从第一个句末标点（。！？；：）或换行处切开，标点前的标题排成黑体或楷体，其余照仿宋；标题后面没有正文时整段就是标题。标题与正文分两段传入最稳妥。
+
+## 工具会拒绝的写法（照它点名的条款改，别重发原值）
+
+- 发文字号必须是「机关代字〔年份〕序号号」，用六角括号〔〕，序号**不加「第」、不编虚位**——是「国办发〔2026〕3号」，不是「国办发〔2026〕第03号」。
+- 日期一律传 \`YYYY-MM-DD\`，工具排成「2026年9月1日」；月日不编虚位。
+- 附件名称末尾**不加标点**。
+- 份号是 1~999999 的整数。
+- 正文层次只有 1~4 级。
+
+## 必守规则
+
+- 工具返回的 \`notes\` 必须如实转述给用户，尤其是字体那一条：文件按标准写了字体名，但机器上没装公文字体时字形会被替换。
+- 印章排不出来：产出的是 GB/T 9704 第 7.3.5.2 条「不加盖印章的公文」，需要盖章的文件要另行用印。不要宣称文件可以直接印发盖章。
+- 一次一份公文；多份逐份产出，逐份报告。
+- 用户没说格式就用默认 docx；只要 odt 时可显式传 \`format: 'odt'\`（这一种不需要机器上装 LibreOffice）。
+- 公文语体：用「现将……通知如下」「请……为荷」「特此报告」这类规范表述，不用口语和感叹号；数字用阿拉伯数字，成文日期、法定名称除外。
+
+## 输出格式
+
+一句话说明写了什么文种、写到哪个文件 → 转述工具报回的要素清单与 \`notes\` → 需要用印或需要用户核对的事项单独一行提醒。
 `
 
 /**
@@ -132,14 +264,22 @@ description: 技术方案技能：按"背景与目标-方案选型-架构设计-
 export const BUILTIN_SUITES: readonly SuiteDefinition[] = [
   {
     id: 'office-essentials',
-    title: '办公四件套',
+    title: '办公六件套',
     tag: '通用',
-    description: '数据可视化、工作周报、数据分析、技术方案四个技能，覆盖日常办公的高频产出场景。',
+    description: '数据可视化、工作周报、数据分析、技术方案、格式转换、公文格式六个技能，覆盖日常办公的高频产出场景。',
     skills: [
-      { name: 'data-visualization', title: '数据可视化', summary: '按数据特征自动选择图表类型，产出可直接使用的 ECharts 配置或独立 HTML 图表页。', body: DATA_VISUALIZATION },
+      {
+        name: 'data-visualization',
+        title: '数据可视化',
+        summary: '按数据特征自动选择图表类型，产出可直接使用的 ECharts 配置或离线可打开的 HTML 图表页。',
+        body: DATA_VISUALIZATION,
+        assets: ECHARTS_ASSETS,
+      },
       { name: 'weekly-report', title: '工作周报', summary: '从本周对话与任务记录提炼「完成 / 进行中 / 下周计划 / 风险」四段，生成可粘贴的职场周报。', body: WEEKLY_REPORT },
       { name: 'data-analysis', title: '数据分析', summary: '对表格 / CSV / JSON 做清洗与统计，输出结论先行的分析报告（关键发现·支撑数字·建议行动）。', body: DATA_ANALYSIS },
-      { name: 'tech-proposal', title: '技术方案', summary: '按「背景-选型-架构-计划-风险」五段生成技术方案文档，含选型对比表与里程碑排期。', body: TECH_PROPOSAL },
+      { name: 'tech-proposal', title: '技术方案', summary: '按「背景-选型-架构-计划-风险」五段生成技术方案，含选型对比表与里程碑排期，并写出 Word 文件。', body: TECH_PROPOSAL },
+      { name: 'format-convert', title: '格式转换', summary: '在 13 种文档 / 表格 / 演示格式之间转换文件，转前判断目标是否可达，转后如实说明版面是否保留。', body: FORMAT_CONVERT },
+      { name: 'official-document', title: '公文格式', summary: '把内容写成 GB/T 9704—2012 党政机关公文：文种与措辞由模型拟，版心、字号、层次序号与版记由工具排。', body: OFFICIAL_DOCUMENT },
     ],
   },
 ]

@@ -1,8 +1,22 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { existsSyncMock } = vi.hoisted(() => ({
+  existsSyncMock: vi.fn<(target: string) => boolean>()
+}))
+
+// The converter probes are filesystem lookups, so the toolkit cases below would otherwise depend on
+// whether the machine running the tests happens to have LibreOffice, pandoc, or poppler installed.
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
+  existsSync: (target: string) => existsSyncMock(target)
+}))
+
 import {
   buildHarnessArguments,
   buildHarnessSpawnOptions,
   buildNodeArguments,
+  bundledFontDirectory,
+  convertToolDirectories,
   extractDuplicateLoaderEntryId,
   extractFailureCause,
   extractOffendingPlugin,
@@ -16,6 +30,11 @@ import {
   isAbortedNavigationError,
   shouldLoadHarnessUrl
 } from '../src/main/window-navigation'
+
+beforeEach(() => {
+  existsSyncMock.mockReset()
+  existsSyncMock.mockReturnValue(false)
+})
 
 describe('Harness launch contract', () => {
   it('does not treat a briefly reachable port as a completed Harness startup', () => {
@@ -56,6 +75,7 @@ describe('Harness launch contract', () => {
     const options = buildHarnessSpawnOptions(
       'C:\\Users\\tester\\AppData\\Roaming\\dsh-desktop\\launch-root',
       'C:\\Users\\tester\\AppData\\Roaming\\dsh-desktop\\harness',
+      undefined,
       'win32',
       {
         ELECTRON_RUN_AS_NODE: '1',
@@ -75,6 +95,86 @@ describe('Harness launch contract', () => {
       }
     })
     expect(options.env).not.toHaveProperty('ELECTRON_RUN_AS_NODE')
+  })
+
+  it('prepends every bundled converter the toolkit actually contains', () => {
+    const toolsRoot = 'C:\\Program Files\\天枢平台\\resources\\tools'
+    const bundled = [
+      `${toolsRoot}\\libreoffice\\program`,
+      `${toolsRoot}\\pandoc`,
+      `${toolsRoot}\\poppler`
+    ]
+    existsSyncMock.mockImplementation((target) => bundled.includes(target))
+
+    expect(convertToolDirectories(toolsRoot, 'win32', {})).toEqual(bundled)
+
+    const options = buildHarnessSpawnOptions('C:\\launch', 'C:\\harness', toolsRoot, 'win32', {
+      Path: 'C:\\Windows\\system32'
+    })
+    expect(options.env?.Path).toBe(`${bundled.join(';')};C:\\Windows\\system32`)
+  })
+
+  it('contributes the converters a partially fetched toolkit does have', () => {
+    const toolsRoot = '/opt/tianshu/resources/tools'
+    existsSyncMock.mockImplementation((target) => target === `${toolsRoot}/poppler`)
+
+    expect(convertToolDirectories(toolsRoot, 'linux', {})).toEqual([`${toolsRoot}/poppler`])
+  })
+
+  it('falls back to an installed LibreOffice when the toolkit ships none', () => {
+    const toolsRoot = 'C:\\Program Files\\天枢平台\\resources\\tools'
+    const installed = 'C:\\Program Files\\LibreOffice\\program'
+    existsSyncMock.mockImplementation((target) => target === `${installed}\\soffice.exe`)
+
+    expect(
+      convertToolDirectories(toolsRoot, 'win32', { ProgramFiles: 'C:\\Program Files' })
+    ).toEqual([installed])
+  })
+
+  it('prefers the bundled LibreOffice over the installed one', () => {
+    const toolsRoot = 'C:\\Program Files\\天枢平台\\resources\\tools'
+    existsSyncMock.mockReturnValue(true)
+
+    expect(
+      convertToolDirectories(toolsRoot, 'win32', { ProgramFiles: 'C:\\Program Files' })
+    ).toEqual([
+      `${toolsRoot}\\libreoffice\\program`,
+      `${toolsRoot}\\pandoc`,
+      `${toolsRoot}\\poppler`
+    ])
+  })
+
+  it('writes both PATH casings on Windows so the Harness lookup is not shadowed', () => {
+    const toolsRoot = 'C:\\tools'
+    existsSyncMock.mockImplementation((target) => target === `${toolsRoot}\\pandoc`)
+
+    const options = buildHarnessSpawnOptions('C:\\launch', 'C:\\harness', toolsRoot, 'win32', {
+      PATH: 'C:\\Windows\\system32',
+      Path: 'C:\\Windows\\system32'
+    })
+
+    expect(options.env?.Path).toBe('C:\\tools\\pandoc;C:\\Windows\\system32')
+    expect(options.env?.PATH).toBe(options.env?.Path)
+  })
+
+  it('does not prepend a converter directory that is already on PATH', () => {
+    const toolsRoot = '/opt/tianshu/resources/tools'
+    existsSyncMock.mockImplementation((target) => target === `${toolsRoot}/pandoc`)
+
+    const options = buildHarnessSpawnOptions('/launch', '/harness', toolsRoot, 'linux', {
+      PATH: `/usr/bin:${toolsRoot}/pandoc`
+    })
+
+    expect(options.env?.PATH).toBe(`/usr/bin:${toolsRoot}/pandoc`)
+  })
+
+  it('leaves PATH untouched when no toolkit was fetched and nothing is installed', () => {
+    const options = buildHarnessSpawnOptions('/launch', '/harness', undefined, 'linux', {
+      PATH: '/usr/bin'
+    })
+
+    expect(options.env?.PATH).toBe('/usr/bin')
+    expect(existsSyncMock).not.toHaveBeenCalled()
   })
 
   it('passes the internal-loader flag directly to bundled Node.js', () => {
@@ -103,6 +203,65 @@ describe('Harness launch contract', () => {
     expect(formatExitCode(4294930435)).toContain(
       '0xFFFF7003, Crashpad handler unavailable'
     )
+  })
+})
+
+/**
+ * The typefaces GB/T 9704—2012 names are commercially licensed, so the Harness cannot carry them and
+ * reads them from a directory the deployment points it at. This is the desktop half of that: the
+ * installer's own fonts, handed to the Harness through `DSH_OFFICIAL_DOCUMENT_FONTS`, which is what
+ * lets a document the client writes open in a recipient's Word or WPS with the right glyphs.
+ */
+describe('the typefaces the official-document tool embeds', () => {
+  const toolsRoot = 'C:\\Program Files\\天枢平台\\resources\\tools'
+  const fonts = `${toolsRoot}\\libreoffice\\share\\fonts\\truetype`
+
+  it('points the Harness at the fonts this installer bundles', () => {
+    existsSyncMock.mockImplementation((target) => target === fonts)
+
+    expect(bundledFontDirectory(toolsRoot, 'win32')).toBe(fonts)
+
+    const options = buildHarnessSpawnOptions('C:\\launch', 'C:\\harness', toolsRoot, 'win32', {})
+    expect(options.env?.DSH_OFFICIAL_DOCUMENT_FONTS).toBe(fonts)
+  })
+
+  it('resolves the directory in the target platform\'s own path flavour', () => {
+    const posixRoot = '/opt/tianshu/resources/tools'
+    existsSyncMock.mockReturnValue(true)
+
+    expect(bundledFontDirectory(posixRoot, 'linux')).toBe(
+      `${posixRoot}/libreoffice/share/fonts/truetype`
+    )
+  })
+
+  it('says nothing to the Harness when this build ships no typefaces', () => {
+    // `npm run package:win:no-fonts` produces a toolkit with the converters but no font directory;
+    // the tool then writes documents that name the typefaces without carrying them.
+    existsSyncMock.mockImplementation((target) => target === `${toolsRoot}\\pandoc`)
+
+    expect(bundledFontDirectory(toolsRoot, 'win32')).toBeUndefined()
+
+    const options = buildHarnessSpawnOptions('C:\\launch', 'C:\\harness', toolsRoot, 'win32', {})
+    expect(options.env).not.toHaveProperty('DSH_OFFICIAL_DOCUMENT_FONTS')
+  })
+
+  it('says nothing to the Harness when no toolkit was fetched at all', () => {
+    expect(bundledFontDirectory(undefined, 'win32')).toBeUndefined()
+
+    const options = buildHarnessSpawnOptions('/launch', '/harness', undefined, 'linux', {})
+    expect(options.env).not.toHaveProperty('DSH_OFFICIAL_DOCUMENT_FONTS')
+    expect(existsSyncMock).not.toHaveBeenCalled()
+  })
+
+  it('does not let the parent environment name a font directory the build does not have', () => {
+    existsSyncMock.mockReturnValue(false)
+
+    const options = buildHarnessSpawnOptions('/launch', '/harness', '/opt/tools', 'linux', {
+      DSH_OFFICIAL_DOCUMENT_FONTS: '/somewhere/else'
+    })
+    // Inherited rather than overwritten: a developer who sets it deliberately still wins, and an
+    // installed client has nothing in its parent environment to inherit.
+    expect(options.env?.DSH_OFFICIAL_DOCUMENT_FONTS).toBe('/somewhere/else')
   })
 })
 

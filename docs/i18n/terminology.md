@@ -105,6 +105,7 @@
 | chunk | 分片 | | | |
 | compaction | 压缩 | 压缩（compaction） | | |
 | companion tool | 配套工具 | | | |
+| collection | 集合 | | 会话集、文件夹 | workspace 注册表中具名的有序会话分组；同上下文里的 `set`（`archive set`、`soft-delete set`）译作「集」以示区分，UI 层的 `folder` 仍作「文件夹」 |
 | composition bundle | 组合包 | | | 只约束应用或插件的组合语境，不约束所有 `bundle` |
 | Cordis plugin config | Cordis 插件配置 | | | Cordis 插件公开的 `Config` 对象或配置结构 |
 | config key | 配置键 | | | Cordis 插件配置中的单个字段 |

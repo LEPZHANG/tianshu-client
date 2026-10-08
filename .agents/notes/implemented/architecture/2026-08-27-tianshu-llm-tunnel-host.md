@@ -1,6 +1,6 @@
 # Agent Note: SSH tunnel host plugin for remote-GPU models
 
-Status: implemented (milestone 2 of 3 — host plugin plus the browser card)
+Status: implemented
 
 English | [中文](2026-08-27-tianshu-llm-tunnel-host.zh.md)
 
@@ -24,7 +24,7 @@ A new host plugin, `@deepseek-ai/dsh-host-llm-tunnel`, owns the tunnel layer and
 
 ## Consequences
 
-Milestone 1 serves key-based SSH auth only: a password-only server fails fast with the ssh diagnostic in the status row. That is the owner's stated login mode, so milestones 2–3 are staged: one-time key provisioning (the ssh-copy-id gesture, password held in the credentials store) and the ssh2-library fallback tunnel. The design leaves room deliberately — the manager's spawn is one method, and the RPC surface stays stable across all three milestones.
+What has shipped is the host plugin and the browser card below it; key-based SSH auth is all either serves, so a password-only server fails fast with the ssh diagnostic in the status row. That is the owner's stated login mode, so two pieces are staged behind it: one-time key provisioning (the ssh-copy-id gesture, password held in the credentials store) and the ssh2-library fallback tunnel. The design leaves room for them deliberately — the manager's spawn is one method, and the RPC surface does not change when either lands.
 
 Local-port collisions surface as tunnel failures (ssh reports the bind error); no port allocation yet.
 
@@ -42,7 +42,7 @@ Typert brought its constraints to the wire types: RPC payloads must be JSON-shap
 
 `tunnel.spec.ts` assembles Loader + a memory settings provider + a fake subprocess seam + the real service: the pinned ssh argv, connecting→failed phase transitions with the stderr diagnostic, the untouched-host survival under an unrelated settings change, honest probe failures, and restart of unknown hosts. The invariant companion suite covers registration/disposal. 7 tests, green; `tsc -b` clean; host and client faces both build (typert artifacts generated). `test:gui` shows no new failures — the two remaining red files predate this work.
 
-## Milestone 2: the browser card
+## The browser card
 
 `RemoteGpuCard` (in `ui-settings-models`) is the third add-flow entry beside "add provider" and "add a custom provider". One create writes two settings rows: the host under `llm-tunnel` (the plugin above reconciles a child into existence within the settings change) and the provider row under `llm-pi-ai` pointing at the forwarded port — the model layer then serves the GPU as an ordinary declared route. A provider-write revision race rolls the tunnel row back (`op: 'unset'`), so a retried create is never half-declared. The "test connection" button rides `llmTunnel.probe` through the generated remote namespace mounted by api/remotes, and splices the tunnel's diagnostic into the localized failure copy (the footer-grade `t` has no interpolation seat). The face is injected as `ctx.remote.llmTunnel` directly — the branded `TunnelHostId` boundary is crossed with one `as never` at the card's call site, since the card's id is the settings key the host owns.
 

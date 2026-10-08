@@ -780,6 +780,8 @@ async function bootstrap(): Promise<void> {
     nodeExecutablePath: bundledNodePath(),
     nodeEntryPath: harnessNodeEntryPath(),
     dshPatchPath: desktopResourcePath('dsh-desktop.patch.yml'),
+    toolsDirectory: desktopResourcePath('tools'),
+    fontsDirectory: desktopResourcePath('fonts'),
     dshHome: join(app.getPath('userData'), 'harness'),
     logPath: join(app.getPath('logs'), 'harness.log'),
     launchProcess: (executablePath, args, options) => spawn(executablePath, args, options),

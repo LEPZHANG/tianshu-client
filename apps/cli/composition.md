@@ -154,6 +154,20 @@ flowchart LR
   cfg --> plugin_dsh_base_web_search_deepseek
   plugin_dsh_base_tool_web["tool-web<br/>@deepseek-ai/dsh-tool-web"]
   cfg --> plugin_dsh_base_tool_web
+  plugin_dsh_base_document_convert["document-convert<br/>@deepseek-ai/dsh-document-convert"]
+  cfg --> plugin_dsh_base_document_convert
+  plugin_dsh_base_document_convert_libreoffice["document-convert-libreoffice<br/>@deepseek-ai/dsh-document-convert-libreoffice"]
+  cfg --> plugin_dsh_base_document_convert_libreoffice
+  plugin_dsh_base_document_convert_msoffice["document-convert-msoffice<br/>@deepseek-ai/dsh-document-convert-msoffice"]
+  cfg --> plugin_dsh_base_document_convert_msoffice
+  plugin_dsh_base_document_convert_pandoc["document-convert-pandoc<br/>@deepseek-ai/dsh-document-convert-pandoc"]
+  cfg --> plugin_dsh_base_document_convert_pandoc
+  plugin_dsh_base_document_convert_poppler["document-convert-poppler<br/>@deepseek-ai/dsh-document-convert-poppler"]
+  cfg --> plugin_dsh_base_document_convert_poppler
+  plugin_dsh_base_tool_document_convert["tool-document-convert<br/>@deepseek-ai/dsh-tool-document-convert"]
+  cfg --> plugin_dsh_base_tool_document_convert
+  plugin_dsh_base_tool_official_document["tool-official-document<br/>@deepseek-ai/dsh-tool-official-document"]
+  cfg --> plugin_dsh_base_tool_official_document
   plugin_dsh_base_tools["tools<br/>@deepseek-ai/dsh-tools"]
   cfg --> plugin_dsh_base_tools
   plugin_dsh_base_system_prompt["system-prompt<br/>@deepseek-ai/dsh-system-prompt"]
@@ -241,6 +255,13 @@ flowchart LR
 | `web` | `@deepseek-ai/dsh-web` |
 | `web-search-deepseek` | `@deepseek-ai/dsh-web-search-deepseek` |
 | `tool-web` | `@deepseek-ai/dsh-tool-web` |
+| `document-convert` | `@deepseek-ai/dsh-document-convert` |
+| `document-convert-libreoffice` | `@deepseek-ai/dsh-document-convert-libreoffice` |
+| `document-convert-msoffice` | `@deepseek-ai/dsh-document-convert-msoffice` |
+| `document-convert-pandoc` | `@deepseek-ai/dsh-document-convert-pandoc` |
+| `document-convert-poppler` | `@deepseek-ai/dsh-document-convert-poppler` |
+| `tool-document-convert` | `@deepseek-ai/dsh-tool-document-convert` |
+| `tool-official-document` | `@deepseek-ai/dsh-tool-official-document` |
 | `tools` | `@deepseek-ai/dsh-tools` |
 | `system-prompt` | `@deepseek-ai/dsh-system-prompt` |
 | `agent-loop` | `@deepseek-ai/dsh-agent-loop` |

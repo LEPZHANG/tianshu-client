@@ -23,11 +23,11 @@ export type ConversationRootProps = ConversationSlotProps
 function loadUserName(): Promise<string | undefined> {
   return Promise.resolve()
     .then(() => fetch('/dsh-webui-auth/whoami'))
-    .then(response => response.json() as Promise<{ username?: unknown, nickname?: unknown }>)
-    .then(data => {
-      const nickname = typeof data?.nickname === 'string' && data.nickname !== '' ? data.nickname : undefined
+    .then(response => response.json() as Promise<{ username?: unknown; nickname?: unknown }>)
+    .then((data) => {
+      const nickname = typeof data.nickname === 'string' && data.nickname !== '' ? data.nickname : undefined
       if (nickname !== undefined) return nickname
-      return typeof data?.username === 'string' && data.username !== '' ? data.username : undefined
+      return typeof data.username === 'string' && data.username !== '' ? data.username : undefined
     })
     .catch(() => undefined)
 }
@@ -58,7 +58,7 @@ export function ConversationRoot({
   // host has no auth surface at all).
   useEffect(() => {
     let alive = true
-    void loadUserName().then(name => {
+    void loadUserName().then((name) => {
       if (alive && name !== undefined) setUserName(name)
     })
     return () => { alive = false }

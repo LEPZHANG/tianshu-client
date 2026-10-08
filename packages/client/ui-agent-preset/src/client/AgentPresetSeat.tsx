@@ -83,7 +83,7 @@ export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, 
 
   // 新增：过滤掉“PTC模式”和“极简模式”（仅用于下拉菜单）
   const hiddenNames = ['PTC 模式', '极简模式']
-  const filteredOptions = state.options.filter(option => {
+  const filteredOptions = state.options.filter((option) => {
     const text = presetDisplayText(option, t)
     return !hiddenNames.includes(text.name)
   })
